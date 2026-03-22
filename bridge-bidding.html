@@ -91,7 +91,24 @@
         .theme-btn.light { background: linear-gradient(135deg, #f5f5f5, #ffffff); }
         .theme-btn.eye { background: linear-gradient(135deg, #c7edcc, #d4edda); }
         .goal { display: inline-block; background: linear-gradient(90deg, var(--accent), #ff6b6b); color: #000; padding: 4px 15px; border-radius: 15px; font-size: 11px; font-weight: bold; margin-top: 8px; }
+        .play-timer { display: inline-flex; align-items: center; gap: 5px; background: var(--bg-card); padding: 5px 12px; border-radius: 15px; margin-top: 8px; margin-left: 10px; cursor: pointer; font-size: 13px; border: 1px solid var(--border-color); }
+        .play-timer:hover { border-color: var(--accent); }
+        .play-timer .timer-icon { font-size: 14px; }
+        .play-timer .timer-text { color: var(--accent-green); font-weight: bold; font-family: monospace; }
+        .play-timer .timer-limit { color: var(--text-muted); font-size: 11px; }
+        .play-timer.warning .timer-text { color: var(--accent); }
+        .play-timer.exceeded .timer-text { color: var(--accent-red); }
         .daily-tip { background: rgba(78, 204, 163, 0.15); border: 1px dashed var(--accent-green); border-radius: 8px; padding: 8px 12px; margin-top: 10px; font-size: 14px; color: var(--accent-green); animation: popIn 0.5s ease-out; }
+
+        /* 时间设置对话框 */
+        .time-settings { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .time-settings-box { background: var(--bg-card); border-radius: 12px; padding: 20px; width: 90%; max-width: 300px; text-align: center; border: 2px solid var(--accent); }
+        .time-settings-box h3 { color: var(--accent); margin-bottom: 15px; }
+        .time-settings-box p { color: var(--text-secondary); font-size: 13px; margin-bottom: 15px; }
+        .time-options { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
+        .time-opt { padding: 8px 16px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-card-alt); color: var(--text-main); cursor: pointer; transition: all 0.15s; }
+        .time-opt:hover, .time-opt.active { border-color: var(--accent); background: var(--accent); color: #000; }
+        .time-stats { background: var(--bg-card-alt); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; color: var(--text-secondary); }
 
         .nav { display: flex; justify-content: center; gap: 3px; margin-bottom: 12px; background: var(--bg-nav); border-radius: 8px; padding: 4px; }
         .nav-btn { flex: 1; padding: 10px 5px; border: none; background: transparent; color: var(--text-muted); border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
@@ -410,6 +427,11 @@
     <h1>🏆 桥牌冠军训练营</h1>
     <p>200天完整课程 · 叫牌+做庄+防守</p>
     <div class="goal">🎯 目标：奥运会冠军</div>
+    <div class="play-timer" id="play-timer" onclick="showTimeLimitSettings()">
+        <span class="timer-icon">⏱️</span>
+        <span class="timer-text" id="timer-text">00:00</span>
+        <span class="timer-limit" id="timer-limit">/ 60分钟</span>
+    </div>
     <div id="daily-tip" class="daily-tip"></div>
 </div>
 
@@ -666,6 +688,161 @@ function setTheme(theme) {
     const saved = localStorage.getItem('bridge-theme') || 'eye';
     setTheme(saved);
 })();
+
+// ============ 游玩时间限制系统 ============
+const playTime = {
+    startTime: Date.now(),
+    todayPlayed: 0,  // 今天已玩的秒数
+    limit: 30,       // 限制分钟数（默认30分钟）
+    warned: false,   // 是否已警告
+    exceeded: false  // 是否已超时
+};
+
+// 初始化时间系统
+(function initPlayTime() {
+    // 从本地存储读取设置
+    const savedLimit = localStorage.getItem('bridge-time-limit');
+    if(savedLimit) playTime.limit = parseInt(savedLimit);
+
+    // 读取今天已玩时间
+    const today = new Date().toDateString();
+    const savedDate = localStorage.getItem('bridge-play-date');
+    const savedPlayed = localStorage.getItem('bridge-play-today');
+
+    if(savedDate === today && savedPlayed) {
+        playTime.todayPlayed = parseInt(savedPlayed);
+    } else {
+        // 新的一天，重置
+        localStorage.setItem('bridge-play-date', today);
+        localStorage.setItem('bridge-play-today', '0');
+        playTime.todayPlayed = 0;
+    }
+
+    playTime.startTime = Date.now();
+    updateTimerDisplay();
+
+    // 每秒更新一次
+    setInterval(updatePlayTime, 1000);
+})();
+
+function updatePlayTime() {
+    const elapsed = Math.floor((Date.now() - playTime.startTime) / 1000);
+    const totalSeconds = playTime.todayPlayed + elapsed;
+    const limitSeconds = playTime.limit * 60;
+
+    // 保存到本地存储（每10秒保存一次）
+    if(elapsed % 10 === 0) {
+        localStorage.setItem('bridge-play-today', totalSeconds.toString());
+    }
+
+    updateTimerDisplay();
+
+    // 检查是否需要警告（剩余5分钟）
+    if(!playTime.warned && totalSeconds >= limitSeconds - 300 && totalSeconds < limitSeconds) {
+        playTime.warned = true;
+        showMascot('⏰', '还剩5分钟', '注意休息眼睛哦~');
+        playSound('click');
+    }
+
+    // 检查是否超时
+    if(!playTime.exceeded && totalSeconds >= limitSeconds) {
+        playTime.exceeded = true;
+        showTimeExceededAlert();
+    }
+}
+
+function updateTimerDisplay() {
+    const elapsed = Math.floor((Date.now() - playTime.startTime) / 1000);
+    const totalSeconds = playTime.todayPlayed + elapsed;
+    const limitSeconds = playTime.limit * 60;
+
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    const timeStr = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+
+    const timerEl = document.getElementById('play-timer');
+    const textEl = document.getElementById('timer-text');
+    const limitEl = document.getElementById('timer-limit');
+
+    if(textEl) textEl.textContent = timeStr;
+    if(limitEl) limitEl.textContent = `/ ${playTime.limit}分钟`;
+
+    if(timerEl) {
+        timerEl.classList.remove('warning', 'exceeded');
+        if(totalSeconds >= limitSeconds) {
+            timerEl.classList.add('exceeded');
+        } else if(totalSeconds >= limitSeconds - 300) {
+            timerEl.classList.add('warning');
+        }
+    }
+}
+
+function showTimeLimitSettings() {
+    const elapsed = Math.floor((Date.now() - playTime.startTime) / 1000);
+    const totalSeconds = playTime.todayPlayed + elapsed;
+    const totalMins = Math.floor(totalSeconds / 60);
+
+    const dialog = document.createElement('div');
+    dialog.className = 'time-settings';
+    dialog.id = 'time-settings';
+    dialog.innerHTML = `
+        <div class="time-settings-box">
+            <h3>⏱️ 每日游玩时间</h3>
+            <div class="time-stats">
+                今日已玩: <b>${totalMins}</b> 分钟
+            </div>
+            <p>设置每日游玩时间限制:</p>
+            <div class="time-options">
+                <button class="time-opt ${playTime.limit===30?'active':''}" onclick="setTimeLimit(30)">30分钟</button>
+                <button class="time-opt ${playTime.limit===60?'active':''}" onclick="setTimeLimit(60)">1小时</button>
+                <button class="time-opt ${playTime.limit===90?'active':''}" onclick="setTimeLimit(90)">1.5小时</button>
+                <button class="time-opt ${playTime.limit===120?'active':''}" onclick="setTimeLimit(120)">2小时</button>
+                <button class="time-opt ${playTime.limit===999?'active':''}" onclick="setTimeLimit(999)">不限制</button>
+            </div>
+            <button class="btn secondary" onclick="document.getElementById('time-settings').remove()">关闭</button>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+}
+
+function setTimeLimit(mins) {
+    playTime.limit = mins;
+    playTime.warned = false;
+    playTime.exceeded = false;
+    localStorage.setItem('bridge-time-limit', mins.toString());
+    updateTimerDisplay();
+    document.getElementById('time-settings').remove();
+    showMascot('⏱️', `已设置${mins === 999 ? '不限制' : mins + '分钟'}`, '记得适当休息~');
+}
+
+function showTimeExceededAlert() {
+    const dialog = document.createElement('div');
+    dialog.className = 'time-settings';
+    dialog.id = 'time-exceeded';
+    dialog.innerHTML = `
+        <div class="time-settings-box">
+            <h3 style="color:var(--accent-red);">⏰ 时间到啦！</h3>
+            <p>今天已经玩了 <b>${playTime.limit}</b> 分钟了<br>休息一下眼睛吧~</p>
+            <div class="time-options">
+                <button class="time-opt" onclick="extendTime(15)">再玩15分钟</button>
+                <button class="time-opt" onclick="extendTime(30)">再玩30分钟</button>
+            </div>
+            <button class="btn secondary" style="margin-top:10px;" onclick="document.getElementById('time-exceeded').remove()">我知道了</button>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+    playSound('wrong');
+}
+
+function extendTime(mins) {
+    playTime.limit += mins;
+    playTime.exceeded = false;
+    playTime.warned = false;
+    localStorage.setItem('bridge-time-limit', playTime.limit.toString());
+    updateTimerDisplay();
+    document.getElementById('time-exceeded').remove();
+    showMascot('⏱️', `延长${mins}分钟`, '记得休息哦~');
+}
 
 // ============ 趣味系统 ============
 // 音效系统
