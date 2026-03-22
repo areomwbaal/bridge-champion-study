@@ -344,6 +344,19 @@
         .battle-bid.pass { background: var(--text-muted); color: #fff; }
         .battle-bid.x { background: #c0392b; color: #fff; }
         .battle-bid.xx { background: #8e44ad; color: #fff; }
+        .battle-bid.hint { background: var(--accent); color: #000; font-weight: bold; }
+
+        /* 叫牌提示框 */
+        .bid-hint-box {
+            position: fixed; bottom: 20%; left: 50%; transform: translateX(-50%);
+            background: var(--bg-card); border: 2px solid var(--accent);
+            border-radius: 12px; padding: 15px 20px; z-index: 500;
+            max-width: 90%; text-align: center; animation: popIn 0.3s ease-out;
+        }
+        .bid-hint-box .hint-title { color: var(--accent); font-weight: bold; margin-bottom: 8px; }
+        .bid-hint-box .hint-bid { font-size: 24px; color: var(--accent-green); margin-bottom: 8px; }
+        .bid-hint-box .hint-exp { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .bid-hint-box .hint-close { margin-top: 10px; padding: 6px 20px; border: none; border-radius: 4px; background: var(--border-color); color: var(--text-main); cursor: pointer; }
 
         .playable-cards { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; justify-content: center; }
         .playable-card { padding: 10px 14px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--bg-card); font-size: 20px; cursor: pointer; transition: all 0.15s; }
@@ -2214,6 +2227,9 @@ function renderBidButtons() {
     html += `<button class="battle-bid x" ${canX?'':'disabled'} onclick="makeBid('X')">X</button>`;
     html += `<button class="battle-bid xx" ${canXX?'':'disabled'} onclick="makeBid('XX')">XX</button>`;
 
+    // 提示按钮
+    html += `<button class="battle-bid hint" onclick="showBidHint()">💡提示</button>`;
+
     container.innerHTML = html;
 }
 
@@ -2248,7 +2264,165 @@ function getLastBidder() {
 
 function makeBid(bid) {
     if(battle.phase !== 'bid' || battle.turn !== 's') return;
+
+    // 获取推荐叫品
+    const recommended = getRecommendedBid();
+
+    // 检查是否合理
+    if(bid !== recommended.bid) {
+        // 显示警告但仍允许叫牌
+        const warning = checkBidReasonable(bid, recommended);
+        if(warning) {
+            showBidWarning(bid, warning, recommended);
+            return; // 让用户确认后再叫
+        }
+    }
+
     processBid(bid);
+}
+
+// 强制执行叫牌（用户确认后）
+function forceProcessBid(bid) {
+    processBid(bid);
+    hideBidWarning();
+}
+
+// 获取推荐叫品
+function getRecommendedBid() {
+    const h = battle.hands['s'];
+    const p = hcp(h), l = lens(h);
+
+    // 判断叫牌阶段
+    const partnerBid = getPartnerLastBid();
+    const oppBid = getOppLastBid();
+
+    // 开叫阶段
+    if(!battle.lastBid && battle.bidSeq.length === 0) {
+        return judgeOpen(h);
+    }
+
+    // 同伴开叫后敌方Pass
+    if(partnerBid && !oppBid && battle.bidSeq.length <= 3) {
+        return judgeResp(h, partnerBid);
+    }
+
+    // 同伴开叫后敌方加倍
+    if(partnerBid && oppBid === 'X') {
+        return judgeAfterX(h, partnerBid);
+    }
+
+    // 竞叫场景
+    if(partnerBid && oppBid && oppBid !== 'X' && oppBid !== 'Pass') {
+        return judgeComp(h, partnerBid, oppBid);
+    }
+
+    // 默认：根据点力简单判断
+    if(p < 6) return {bid: 'Pass', exp: '点力不足'};
+    if(p >= 12 && !battle.lastBid) return judgeOpen(h);
+    return {bid: 'Pass', exp: '暂时Pass观望'};
+}
+
+// 获取同伴上次叫品
+function getPartnerLastBid() {
+    for(let i = battle.bidSeq.length - 2; i >= 0; i -= 2) {
+        const bid = battle.bidSeq[i];
+        if(bid !== 'Pass' && bid !== 'X' && bid !== 'XX') return bid;
+    }
+    return null;
+}
+
+// 获取敌方上次叫品
+function getOppLastBid() {
+    if(battle.bidSeq.length >= 1) {
+        return battle.bidSeq[battle.bidSeq.length - 1];
+    }
+    return null;
+}
+
+// 检查叫品是否合理
+function checkBidReasonable(userBid, recommended) {
+    const h = battle.hands['s'];
+    const p = hcp(h);
+
+    // Pass总是允许的
+    if(userBid === 'Pass') return null;
+
+    // 如果推荐Pass但用户想叫，检查点力
+    if(recommended.bid === 'Pass' && p < 6) {
+        return `只有${p}点，点力不足以行动`;
+    }
+
+    // 如果用户跳叫太高
+    if(userBid !== 'X' && userBid !== 'XX') {
+        const userLevel = parseInt(userBid[0]);
+        const recLevel = recommended.bid !== 'Pass' && recommended.bid !== 'X' && recommended.bid !== 'XX'
+            ? parseInt(recommended.bid[0]) : 1;
+        if(userLevel >= recLevel + 2 && p < 16) {
+            return `${p}点跳叫到${userBid}可能太激进`;
+        }
+    }
+
+    // 开叫时点力不足
+    if(!battle.lastBid && battle.bidSeq.length === 0 && p < 12 && userBid !== 'Pass') {
+        return `只有${p}点，通常需要12+点才能开叫`;
+    }
+
+    return null; // 没有问题
+}
+
+// 显示叫牌提示
+function showBidHint() {
+    const recommended = getRecommendedBid();
+    const h = battle.hands['s'];
+    const p = hcp(h);
+
+    const hintBox = document.createElement('div');
+    hintBox.className = 'bid-hint-box';
+    hintBox.id = 'bid-hint-box';
+    hintBox.innerHTML = `
+        <div class="hint-title">💡 推荐叫品 (${p}点)</div>
+        <div class="hint-bid">${recommended.bid}</div>
+        <div class="hint-exp">${recommended.exp}</div>
+        <button class="hint-close" onclick="this.parentElement.remove()">知道了</button>
+    `;
+
+    // 移除旧的提示
+    const old = document.getElementById('bid-hint-box');
+    if(old) old.remove();
+
+    document.body.appendChild(hintBox);
+
+    // 3秒后自动关闭
+    setTimeout(() => {
+        const box = document.getElementById('bid-hint-box');
+        if(box) box.remove();
+    }, 5000);
+}
+
+// 显示叫牌警告
+function showBidWarning(userBid, warning, recommended) {
+    const hintBox = document.createElement('div');
+    hintBox.className = 'bid-hint-box';
+    hintBox.id = 'bid-warning-box';
+    hintBox.innerHTML = `
+        <div class="hint-title" style="color:var(--accent-red);">⚠️ 叫牌提醒</div>
+        <div class="hint-exp">${warning}</div>
+        <div class="hint-exp" style="margin-top:8px;">推荐叫品: <b>${recommended.bid}</b></div>
+        <div style="margin-top:12px; display:flex; gap:10px; justify-content:center;">
+            <button class="hint-close" onclick="hideBidWarning()" style="background:var(--accent-green);">改叫${recommended.bid}</button>
+            <button class="hint-close" onclick="forceProcessBid('${userBid}')" style="background:var(--accent-red);color:#fff;">坚持叫${userBid}</button>
+        </div>
+    `;
+
+    const old = document.getElementById('bid-warning-box');
+    if(old) old.remove();
+
+    document.body.appendChild(hintBox);
+}
+
+function hideBidWarning() {
+    const box = document.getElementById('bid-warning-box');
+    if(box) box.remove();
 }
 
 function processBid(bid) {
