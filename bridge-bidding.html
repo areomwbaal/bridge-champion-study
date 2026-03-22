@@ -241,6 +241,61 @@
         .modal-title.fail { color: #e74c3c; }
         .modal-text { font-size: 12px; color: #aaa; margin-bottom: 15px; line-height: 1.5; }
         .modal-btn { padding: 10px 30px; border: none; border-radius: 6px; background: #ffd700; color: #000; font-size: 14px; font-weight: bold; cursor: pointer; }
+
+        /* 对战页面 */
+        .battle-status { background: #111; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .battle-status .phase { color: #ffd700; font-weight: bold; }
+        .battle-status .contract { color: #4ecca3; }
+        .battle-status .tricks { color: #fff; }
+
+        .battle-table { background: #0a1628; border-radius: 10px; padding: 10px; margin-bottom: 10px; position: relative; }
+        .battle-grid { display: grid; grid-template-columns: 1fr 2fr 1fr; grid-template-rows: auto auto auto; gap: 5px; min-height: 280px; }
+        .battle-hand { background: #16213e; border-radius: 6px; padding: 8px; font-size: 11px; min-height: 80px; }
+        .battle-hand.north { grid-column: 2; }
+        .battle-hand.west { grid-row: 2; align-self: center; }
+        .battle-hand.east { grid-column: 3; grid-row: 2; align-self: center; }
+        .battle-hand.south { grid-column: 2; grid-row: 3; border: 2px solid #ffd700; }
+        .battle-hand .pos-label { color: #888; font-size: 10px; text-align: center; margin-bottom: 4px; }
+        .battle-hand .suit { margin: 2px 0; white-space: nowrap; }
+        .battle-hand.hidden .suit { color: #444; }
+        .battle-hand.dummy { border: 2px dashed #4ecca3; }
+        .battle-hand.turn { box-shadow: 0 0 10px #ffd700; }
+
+        .battle-center { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100px; }
+        .battle-center .direction { color: #666; font-size: 11px; margin-bottom: 5px; }
+        .current-trick { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto auto; gap: 2px; width: 120px; height: 100px; }
+        .trick-card { display: flex; align-items: center; justify-content: center; font-size: 16px; background: rgba(255,255,255,0.1); border-radius: 4px; min-height: 28px; }
+        .trick-card.n { grid-column: 2; grid-row: 1; }
+        .trick-card.w { grid-column: 1; grid-row: 2; }
+        .trick-card.e { grid-column: 3; grid-row: 2; }
+        .trick-card.s { grid-column: 2; grid-row: 3; }
+        .trick-card .card-s, .trick-card .card-c { color: #333; text-shadow: 0 0 2px #fff; }
+        .trick-card .card-h, .trick-card .card-d { color: #e74c3c; }
+
+        .bid-sequence { background: #0f3460; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+        .bid-seq-table { width: 100%; text-align: center; font-size: 11px; border-collapse: collapse; }
+        .bid-seq-table th { color: #666; font-weight: normal; padding: 3px; border-bottom: 1px solid #333; }
+        .bid-seq-table td { padding: 4px 2px; font-size: 14px; }
+        .bid-seq-table .dealer { text-decoration: underline; }
+
+        .battle-bids { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 10px; }
+        .battle-bid { padding: 8px 2px; border: none; border-radius: 4px; background: #0f3460; color: #fff; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+        .battle-bid:hover:not(:disabled) { background: #ffd700; color: #000; transform: scale(1.05); }
+        .battle-bid:disabled { opacity: 0.3; cursor: not-allowed; }
+        .battle-bid.pass { background: #444; }
+        .battle-bid.x { background: #c0392b; }
+        .battle-bid.xx { background: #8e44ad; }
+
+        .playable-cards { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; justify-content: center; }
+        .playable-card { padding: 8px 12px; border: 2px solid #333; border-radius: 6px; background: #16213e; font-size: 16px; cursor: pointer; transition: all 0.15s; }
+        .playable-card:hover { border-color: #ffd700; transform: translateY(-3px); }
+        .playable-card.card-s, .playable-card.card-c { color: #333; text-shadow: 0 0 2px #fff; background: #f0f0f0; }
+        .playable-card.card-h, .playable-card.card-d { color: #e74c3c; background: #fff0f0; }
+
+        .battle-result { background: linear-gradient(135deg, #1e3a5f, #16213e); border-radius: 10px; padding: 15px; margin-bottom: 10px; text-align: center; border: 2px solid #ffd700; }
+        .battle-result h3 { color: #ffd700; margin-bottom: 10px; }
+        .battle-result .score { font-size: 24px; color: #4ecca3; margin-bottom: 5px; }
+        .battle-result .detail { font-size: 12px; color: #aaa; }
     </style>
 </head>
 <body>
@@ -257,6 +312,7 @@
     <button class="nav-btn" onclick="showPage('bid')">🃏 叫牌</button>
     <button class="nav-btn" onclick="showPage('play')">👑 做庄</button>
     <button class="nav-btn" onclick="showPage('defend')">🛡️ 防守</button>
+    <button class="nav-btn" onclick="showPage('battle')">⚔️ 对战</button>
 </div>
 
 <!-- 训练计划页 -->
@@ -391,6 +447,61 @@
     <div class="play-options" id="def-opts"></div>
     <div class="result-box" id="def-res"><h4 id="def-res-t"></h4><p id="def-res-p"></p></div>
     <button class="btn primary" onclick="newDefQ()">下一题</button>
+</div>
+
+<!-- 对战页面 -->
+<div class="page" id="page-battle">
+    <div class="battle-status">
+        <span class="phase" id="bt-phase">准备开始</span>
+        <span class="contract" id="bt-contract"></span>
+        <span class="tricks" id="bt-tricks"></span>
+    </div>
+
+    <div class="battle-table">
+        <div class="battle-grid">
+            <div class="battle-hand north" id="bt-hand-n">
+                <div class="pos-label">北 (搭档)</div>
+            </div>
+            <div class="battle-hand west" id="bt-hand-w">
+                <div class="pos-label">西</div>
+            </div>
+            <div class="battle-center">
+                <div class="direction">N<br>W · E<br>S</div>
+                <div class="current-trick" id="bt-trick">
+                    <div class="trick-card n" id="tc-n"></div>
+                    <div class="trick-card w" id="tc-w"></div>
+                    <div class="trick-card e" id="tc-e"></div>
+                    <div class="trick-card s" id="tc-s"></div>
+                </div>
+            </div>
+            <div class="battle-hand east" id="bt-hand-e">
+                <div class="pos-label">东</div>
+            </div>
+            <div class="battle-hand south" id="bt-hand-s">
+                <div class="pos-label">南 (你)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bid-sequence" id="bt-bid-seq" style="display:none;">
+        <table class="bid-seq-table">
+            <thead><tr><th>西</th><th>北</th><th>东</th><th>南</th></tr></thead>
+            <tbody id="bt-bid-body"></tbody>
+        </table>
+    </div>
+
+    <div class="battle-bids" id="bt-bids" style="display:none;"></div>
+
+    <div class="playable-cards" id="bt-play-cards" style="display:none;"></div>
+
+    <div class="battle-result" id="bt-result" style="display:none;">
+        <h3 id="bt-result-title">结果</h3>
+        <div class="score" id="bt-result-score"></div>
+        <div class="detail" id="bt-result-detail"></div>
+    </div>
+
+    <button class="btn primary" id="bt-start-btn" onclick="startBattle()">开始对战 ⚔️</button>
+    <button class="btn secondary" id="bt-new-btn" onclick="startBattle()" style="display:none;">再来一局</button>
 </div>
 
 <!-- 弹窗 -->
@@ -632,7 +743,7 @@ for(let i=0;i<14;i++) advLessons.push({t:i===13?'阶段6结业':`高级${i+1}`,c
 const playLessons = [
     {t:'做庄概述',c:`<h4>👑 做庄基础</h4>做庄的目标是完成定约，需要赢得足够的墩数。<div class="box">小满贯(6阶)=12墩<br>大满贯(7阶)=13墩<br>成局=9-10墩</div>`,type:'play'},
     {t:'赢墩计划',c:`<h4>🎯 计划</h4>数赢墩(NT)或输墩(有将)，制定打牌计划。`,type:'play'},
-    {t:'飞牌基础',c:`<h4>✨ 飞牌</h4><div class="formula">飞牌 = 利用位置优势争取额外赢墩</div><div class="box">AQ对K，如果K在左边可以飞成功</div>`,type:'play'},
+    {t:'飞牌基础',c:`<h4>✨ 飞牌</h4><div class="formula">飞牌 = 利用位置优势争取额外赢墩</div><div class="box">AQ对K：从没有AQ的手出小牌，让K持有者先出牌<br>K在被飞过的位置（出牌顺序在你之前）才能成功</div>`,type:'play'},
     {t:'单飞与双飞',c:`<h4>🎴 飞牌技巧</h4>单飞：AQ飞K<br>双飞：AQJ飞KT`,type:'play'},
     {t:'飞牌练习1',c:`<h4>📝 练习</h4>`,type:'play'},
     {t:'飞牌练习2',c:`<h4>📝 练习</h4>`,type:'play'},
@@ -839,6 +950,30 @@ function showPage(p) {
     if(p==='bid')newFreeBid();
     if(p==='play')newPlayQ();
     if(p==='defend')newDefQ();
+    if(p==='battle')initBattlePage();
+}
+
+function initBattlePage() {
+    if(battle.phase === 'idle') {
+        document.getElementById('bt-start-btn').style.display = 'block';
+        document.getElementById('bt-new-btn').style.display = 'none';
+        document.getElementById('bt-result').style.display = 'none';
+        document.getElementById('bt-bid-seq').style.display = 'none';
+        document.getElementById('bt-bids').style.display = 'none';
+        document.getElementById('bt-play-cards').style.display = 'none';
+        document.getElementById('bt-phase').textContent = '准备开始';
+        document.getElementById('bt-contract').textContent = '';
+        document.getElementById('bt-tricks').textContent = '';
+        // 清空手牌显示
+        POSITIONS.forEach(p => {
+            const label = p === 'n' ? '北 (搭档)' : p === 's' ? '南 (你)' : p === 'e' ? '东' : '西';
+            document.getElementById('bt-hand-'+p).innerHTML = `<div class="pos-label">${label}</div>`;
+        });
+        // 清空当前墩
+        POSITIONS.forEach(p => {
+            document.getElementById('tc-'+p).innerHTML = '';
+        });
+    }
 }
 
 function updateUI() {
@@ -1149,9 +1284,9 @@ function pickF(b) {
 let playMode = 'finesse';
 const PLAY_QS = {
     finesse: [
-        {q:'♦花色：明手AQ，如何打这门？', opts:['先打A','从明手小牌飞Q','打Q'], ans:1, exp:'从明手出小牌飞Q，如果K在西家可以赢两墩',
+        {q:'♦花色：明手AQ，如何打这门？', opts:['先打A','从庄家出小牌飞牌','打Q'], ans:1, exp:'从庄家出小牌向明手飞，如果K在西家可以赢两墩',
          n:'♠ K Q x x<br>♥ x x x<br>♦ A Q x<br>♣ x x x', s:'♠ A J x x x<br>♥ A K<br>♦ x x x<br>♣ A x x', need:10, contract:'4♠'},
-        {q:'♠花色：你有AQJ，如何最大化赢墩？', opts:['打A','反复飞牌','直接打QJ'], ans:1, exp:'反复飞牌，如果K在西家可能赢3墩',
+        {q:'♠花色：你有AQJ，如何最大化赢墩？', opts:['打A','反复飞牌','直接打QJ'], ans:1, exp:'反复飞牌，如果K在东家可以赢全部5墩将牌',
          n:'♠ x x x x<br>♥ x x x<br>♦ A x x<br>♣ K x x', s:'♠ A Q J x x<br>♥ A K<br>♦ K x x<br>♣ A x x', need:10, contract:'4♠'},
         {q:'♣花色：明手KQ对敌方A，什么时候打？', opts:['立即打','等对手打A','投出这门'], ans:1, exp:'等对手打A，之后KQ都是赢墩',
          n:'♠ K Q x x<br>♥ x x x<br>♦ A x x<br>♣ K Q x', s:'♠ A J x x x<br>♥ A K<br>♦ K x x<br>♣ x x x', need:10, contract:'4♠'},
@@ -1165,7 +1300,7 @@ const PLAY_QS = {
     ruff: [
         {q:'明手♦单张，如何利用？', opts:['将吃','垫牌','忽略'], ans:0, exp:'用明手的将牌将吃♦，可以多赢一墩',
          n:'♠ K x x x<br>♥ x x x<br>♦ x<br>♣ A x x x x', s:'♠ A Q J x x<br>♥ A K<br>♦ x x x x<br>♣ K x', need:10, contract:'4♠'},
-        {q:'双方都有短套，如何操作？', opts:['交叉将吃','只用明手将吃','只用手上将吃'], ans:0, exp:'交叉将吃：明手将吃♦，手上将吃♣，多赢好几墩',
+        {q:'双方都有短套，如何操作？', opts:['交叉将吃','只用明手将吃','只用手上将吃'], ans:0, exp:'交叉将吃：明手将吃♣，手上将吃♦，多赢好几墩',
          n:'♠ K x x x<br>♥ x x<br>♦ A K x x x<br>♣ x', s:'♠ A Q J x x<br>♥ A K x<br>♦ x<br>♣ x x x x', need:11, contract:'5♠'},
     ],
     squeeze: [
@@ -1315,6 +1450,609 @@ setTimeout(() => {
     let greeting = hour < 12 ? '早上好' : (hour < 18 ? '下午好' : '晚上好');
     showMascot('👋', `${greeting}，小冠军！`, '今天也要加油哦！');
 }, 500);
+
+// ============ 对战系统 ============
+const battle = {
+    phase: 'idle', // idle, bid, play, end
+    hands: {n:{}, e:{}, s:{}, w:{}},
+    dealer: 's',
+    bidSeq: [],
+    contract: null,
+    declarer: null,
+    dummy: null,
+    tricks: {ns:0, ew:0},
+    currentTrick: [],
+    lead: null,
+    turn: null,
+    trumpSuit: null,
+    passCount: 0,
+    lastBid: null,
+    doubled: 0
+};
+
+const POSITIONS = ['w', 'n', 'e', 's'];
+const SUIT_SYMBOLS = {spades:'♠', hearts:'♥', diamonds:'♦', clubs:'♣'};
+const SUIT_ORDER = {clubs:0, diamonds:1, hearts:2, spades:3, nt:4};
+const BID_SUITS = ['♣', '♦', '♥', '♠', 'NT'];
+
+function dealFour() {
+    const deck = [];
+    S.forEach(s => R.forEach(r => deck.push({s, r})));
+    shuf(deck);
+
+    const hands = {n:{}, e:{}, s:{}, w:{}};
+    POSITIONS.forEach((pos, i) => {
+        hands[pos] = {spades:[], hearts:[], diamonds:[], clubs:[]};
+        for(let j=0; j<13; j++) {
+            const card = deck[i*13 + j];
+            hands[pos][card.s].push(card.r);
+        }
+        S.forEach(s => hands[pos][s].sort((a,b)=>R.indexOf(a)-R.indexOf(b)));
+    });
+    return hands;
+}
+
+function getNextPos(pos) {
+    const idx = POSITIONS.indexOf(pos);
+    return POSITIONS[(idx + 1) % 4];
+}
+
+function getPartner(pos) {
+    const idx = POSITIONS.indexOf(pos);
+    return POSITIONS[(idx + 2) % 4];
+}
+
+function startBattle() {
+    battle.phase = 'bid';
+    battle.hands = dealFour();
+    battle.dealer = 's';
+    battle.bidSeq = [];
+    battle.contract = null;
+    battle.declarer = null;
+    battle.dummy = null;
+    battle.tricks = {ns:0, ew:0};
+    battle.currentTrick = [];
+    battle.turn = battle.dealer;
+    battle.trumpSuit = null;
+    battle.passCount = 0;
+    battle.lastBid = null;
+    battle.doubled = 0;
+
+    document.getElementById('bt-start-btn').style.display = 'none';
+    document.getElementById('bt-new-btn').style.display = 'none';
+    document.getElementById('bt-result').style.display = 'none';
+
+    renderBattle();
+    if(battle.turn !== 's') {
+        setTimeout(() => aiDoBid(), 800);
+    }
+}
+
+function renderBattle() {
+    // 更新阶段显示
+    const phaseEl = document.getElementById('bt-phase');
+    const contractEl = document.getElementById('bt-contract');
+    const tricksEl = document.getElementById('bt-tricks');
+
+    if(battle.phase === 'bid') {
+        phaseEl.textContent = '叫牌中...';
+        contractEl.textContent = battle.lastBid ? `当前: ${battle.lastBid.level}${battle.lastBid.suit}` : '';
+        tricksEl.textContent = '';
+    } else if(battle.phase === 'play') {
+        phaseEl.textContent = '打牌中...';
+        contractEl.textContent = `定约: ${battle.contract.level}${battle.contract.suit}`;
+        tricksEl.textContent = `NS: ${battle.tricks.ns} | EW: ${battle.tricks.ew}`;
+    } else if(battle.phase === 'end') {
+        phaseEl.textContent = '结束';
+    }
+
+    // 渲染4家手牌
+    renderHand('n');
+    renderHand('e');
+    renderHand('s');
+    renderHand('w');
+
+    // 标记当前出牌方
+    POSITIONS.forEach(p => {
+        const el = document.getElementById('bt-hand-'+p);
+        el.classList.remove('turn', 'dummy');
+        if(battle.turn === p) el.classList.add('turn');
+        if(battle.dummy === p) el.classList.add('dummy');
+    });
+
+    // 叫牌阶段
+    if(battle.phase === 'bid') {
+        document.getElementById('bt-bid-seq').style.display = 'block';
+        document.getElementById('bt-bids').style.display = battle.turn === 's' ? 'grid' : 'none';
+        document.getElementById('bt-play-cards').style.display = 'none';
+        renderBidSequence();
+        if(battle.turn === 's') renderBidButtons();
+    }
+    // 打牌阶段
+    else if(battle.phase === 'play') {
+        document.getElementById('bt-bid-seq').style.display = 'none';
+        document.getElementById('bt-bids').style.display = 'none';
+
+        const canPlay = battle.turn === 's' || (battle.turn === battle.dummy && battle.declarer === 's');
+        document.getElementById('bt-play-cards').style.display = canPlay ? 'flex' : 'none';
+
+        if(canPlay) renderPlayableCards();
+        renderCurrentTrick();
+    }
+}
+
+function renderHand(pos) {
+    const el = document.getElementById('bt-hand-'+pos);
+    const h = battle.hands[pos];
+    const isHidden = battle.phase === 'play' && pos !== 's' && pos !== battle.dummy;
+    const label = pos === 'n' ? '北 (搭档)' : pos === 's' ? '南 (你)' : pos === 'e' ? '东' : '西';
+
+    el.classList.toggle('hidden', isHidden);
+
+    if(isHidden) {
+        const count = S.reduce((t,s) => t + h[s].length, 0);
+        el.innerHTML = `<div class="pos-label">${label}</div><div style="text-align:center;color:#666;padding:10px;">${count}张牌</div>`;
+    } else {
+        let html = `<div class="pos-label">${label}</div>`;
+        S.forEach(suit => {
+            const sym = SUIT_SYMBOLS[suit];
+            const cls = (suit === 'hearts' || suit === 'diamonds') ? 'h' : 's';
+            html += `<div class="suit"><span class="${cls}">${sym}</span> ${h[suit].join(' ') || '-'}</div>`;
+        });
+        el.innerHTML = html;
+    }
+}
+
+function renderBidSequence() {
+    const body = document.getElementById('bt-bid-body');
+    let html = '';
+    let row = ['', '', '', ''];
+    let dealerIdx = POSITIONS.indexOf(battle.dealer);
+
+    battle.bidSeq.forEach((bid, i) => {
+        const posIdx = (dealerIdx + i) % 4;
+        row[posIdx] = bid;
+        if(posIdx === 3 || i === battle.bidSeq.length - 1) {
+            html += '<tr>' + row.map((b,j) => {
+                const cls = (j===1||j===3) ? (j===3?'you':'partner') : 'opp';
+                return `<td class="${cls}">${b || ''}</td>`;
+            }).join('') + '</tr>';
+            if(posIdx === 3) row = ['', '', '', ''];
+        }
+    });
+
+    // 当前轮到谁
+    if(battle.phase === 'bid') {
+        const turnIdx = (dealerIdx + battle.bidSeq.length) % 4;
+        if(row.some(r => r)) {
+            row[turnIdx] = '<span class="q">?</span>';
+            html += '<tr>' + row.map((b,j) => {
+                const cls = (j===1||j===3) ? (j===3?'you':'partner') : 'opp';
+                return `<td class="${cls}">${b || ''}</td>`;
+            }).join('') + '</tr>';
+        } else {
+            html += '<tr>' + ['','','',''].map((b,j) => {
+                const cls = (j===1||j===3) ? (j===3?'you':'partner') : 'opp';
+                return `<td class="${cls}">${j===turnIdx?'<span class="q">?</span>':''}</td>`;
+            }).join('') + '</tr>';
+        }
+    }
+
+    body.innerHTML = html;
+}
+
+function renderBidButtons() {
+    const container = document.getElementById('bt-bids');
+    let html = '';
+
+    // Pass按钮
+    html += '<button class="battle-bid pass" onclick="makeBid(\'Pass\')">Pass</button>';
+
+    // 叫品按钮
+    for(let level=1; level<=7; level++) {
+        BID_SUITS.forEach(suit => {
+            const bid = level + suit;
+            const disabled = !isValidBid(level, suit);
+            html += `<button class="battle-bid" ${disabled?'disabled':''} onclick="makeBid('${bid}')">${bid}</button>`;
+        });
+    }
+
+    // X/XX按钮
+    const canX = battle.lastBid && !battle.doubled && (battle.bidSeq.length > 0) &&
+                 ((POSITIONS.indexOf(battle.turn) % 2) !== (POSITIONS.indexOf(getLastBidder()) % 2));
+    const canXX = battle.doubled === 1 &&
+                  ((POSITIONS.indexOf(battle.turn) % 2) === (POSITIONS.indexOf(getLastBidder()) % 2));
+
+    html += `<button class="battle-bid x" ${canX?'':'disabled'} onclick="makeBid('X')">X</button>`;
+    html += `<button class="battle-bid xx" ${canXX?'':'disabled'} onclick="makeBid('XX')">XX</button>`;
+
+    container.innerHTML = html;
+}
+
+function isValidBid(level, suit) {
+    if(!battle.lastBid) return true;
+    const lastLevel = battle.lastBid.level;
+    const lastSuitOrder = SUIT_ORDER[suitNameFromSymbol(battle.lastBid.suit)];
+    const newSuitOrder = SUIT_ORDER[suitNameFromSymbol(suit)];
+
+    if(level > lastLevel) return true;
+    if(level === lastLevel && newSuitOrder > lastSuitOrder) return true;
+    return false;
+}
+
+function suitNameFromSymbol(sym) {
+    if(sym === '♠') return 'spades';
+    if(sym === '♥') return 'hearts';
+    if(sym === '♦') return 'diamonds';
+    if(sym === '♣') return 'clubs';
+    if(sym === 'NT') return 'nt';
+    return 'nt';
+}
+
+function getLastBidder() {
+    for(let i = battle.bidSeq.length - 1; i >= 0; i--) {
+        if(battle.bidSeq[i] !== 'Pass' && battle.bidSeq[i] !== 'X' && battle.bidSeq[i] !== 'XX') {
+            return POSITIONS[(POSITIONS.indexOf(battle.dealer) + i) % 4];
+        }
+    }
+    return null;
+}
+
+function makeBid(bid) {
+    if(battle.phase !== 'bid' || battle.turn !== 's') return;
+    processBid(bid);
+}
+
+function processBid(bid) {
+    battle.bidSeq.push(bid);
+
+    if(bid === 'Pass') {
+        battle.passCount++;
+    } else if(bid === 'X') {
+        battle.doubled = 1;
+        battle.passCount = 0;
+    } else if(bid === 'XX') {
+        battle.doubled = 2;
+        battle.passCount = 0;
+    } else {
+        const level = parseInt(bid[0]);
+        const suit = bid.slice(1);
+        battle.lastBid = {level, suit};
+        battle.declarer = battle.turn;
+        battle.passCount = 0;
+        battle.doubled = 0;
+    }
+
+    // 检查叫牌结束
+    if(battle.passCount >= 3 && battle.lastBid) {
+        finishBidding();
+        return;
+    }
+    if(battle.passCount >= 4) {
+        // 全Pass
+        battle.phase = 'end';
+        showBattleResult('全Pass', '没有定约');
+        return;
+    }
+
+    battle.turn = getNextPos(battle.turn);
+    renderBattle();
+
+    if(battle.turn !== 's') {
+        setTimeout(() => aiDoBid(), 800);
+    }
+}
+
+function finishBidding() {
+    battle.contract = {
+        level: battle.lastBid.level,
+        suit: battle.lastBid.suit,
+        doubled: battle.doubled
+    };
+    battle.trumpSuit = suitNameFromSymbol(battle.contract.suit);
+    battle.dummy = getPartner(battle.declarer);
+    battle.lead = getNextPos(battle.declarer);
+    battle.turn = battle.lead;
+    battle.phase = 'play';
+    battle.currentTrick = [];
+
+    playSound('levelup');
+    renderBattle();
+
+    if(battle.turn !== 's' && battle.turn !== battle.dummy) {
+        setTimeout(() => aiDoPlay(), 1000);
+    }
+}
+
+function aiDoBid() {
+    if(battle.phase !== 'bid') return;
+
+    const pos = battle.turn;
+    const h = battle.hands[pos];
+    let bid = 'Pass';
+
+    // 简单AI: 使用现有的judgeOpen
+    if(!battle.lastBid) {
+        const result = judgeOpen(h);
+        bid = result.bid;
+    } else {
+        // 应叫逻辑
+        const p = hcp(h);
+        const l = lens(h);
+        const partner = getPartner(pos);
+        const isPartnerBid = battle.declarer === partner;
+
+        if(isPartnerBid && battle.lastBid) {
+            // 支持同伴
+            const suit = suitNameFromSymbol(battle.lastBid.suit);
+            if(suit !== 'nt' && h[suit].length >= 3 && p >= 6) {
+                const newLevel = Math.min(battle.lastBid.level + 1, 4);
+                if(isValidBid(newLevel, battle.lastBid.suit)) {
+                    bid = newLevel + battle.lastBid.suit;
+                }
+            } else if(p >= 10 && battle.lastBid.level < 3) {
+                // 尝试叫新花色
+                if(l.s >= 5 && isValidBid(1, '♠')) bid = '1♠';
+                else if(l.h >= 5 && isValidBid(1, '♥')) bid = '1♥';
+            }
+        } else if(!isPartnerBid && p >= 12) {
+            // 争叫
+            if(l.s >= 5 && isValidBid(1, '♠')) bid = '1♠';
+            else if(l.h >= 5 && isValidBid(1, '♥')) bid = '1♥';
+            else if(l.d >= 5 && isValidBid(2, '♦')) bid = '2♦';
+            else if(l.c >= 5 && isValidBid(2, '♣')) bid = '2♣';
+        }
+    }
+
+    processBid(bid);
+}
+
+function renderPlayableCards() {
+    const container = document.getElementById('bt-play-cards');
+    const pos = battle.turn === battle.dummy ? battle.dummy : 's';
+    const h = battle.hands[pos];
+    const validCards = getValidCards(pos);
+
+    let html = '';
+    validCards.forEach(card => {
+        const cls = (card.s === 'hearts' || card.s === 'diamonds') ? 'card-h' : 'card-s';
+        const sym = SUIT_SYMBOLS[card.s];
+        html += `<button class="playable-card ${cls}" onclick="playCard('${card.s}','${card.r}')">${sym}${card.r}</button>`;
+    });
+
+    container.innerHTML = html;
+}
+
+function getValidCards(pos) {
+    const h = battle.hands[pos];
+    const cards = [];
+    S.forEach(s => h[s].forEach(r => cards.push({s, r})));
+
+    if(battle.currentTrick.length === 0) return cards;
+
+    // 必须跟首攻花色
+    const leadSuit = battle.currentTrick[0].suit;
+    const followCards = cards.filter(c => c.s === leadSuit);
+    return followCards.length > 0 ? followCards : cards;
+}
+
+function playCard(suit, rank) {
+    if(battle.phase !== 'play') return;
+
+    const pos = battle.turn === battle.dummy && battle.declarer === 's' ? battle.dummy : 's';
+    if(battle.turn !== 's' && !(battle.turn === battle.dummy && battle.declarer === 's')) return;
+
+    processPlayCard(pos, suit, rank);
+}
+
+function processPlayCard(pos, suit, rank) {
+    // 从手牌移除
+    const h = battle.hands[pos];
+    const idx = h[suit].indexOf(rank);
+    if(idx === -1) return;
+    h[suit].splice(idx, 1);
+
+    // 添加到当前墩
+    battle.currentTrick.push({pos, suit, rank});
+    renderCurrentTrick();
+    renderHand(pos);
+
+    // 检查一墩是否结束
+    if(battle.currentTrick.length === 4) {
+        setTimeout(() => finishTrick(), 1000);
+        return;
+    }
+
+    battle.turn = getNextPos(battle.turn);
+    renderBattle();
+
+    // AI出牌
+    const canAIPlay = battle.turn !== 's' && !(battle.turn === battle.dummy && battle.declarer === 's');
+    if(canAIPlay) {
+        setTimeout(() => aiDoPlay(), 600);
+    }
+}
+
+function renderCurrentTrick() {
+    POSITIONS.forEach(p => {
+        const el = document.getElementById('tc-'+p);
+        const card = battle.currentTrick.find(c => c.pos === p);
+        if(card) {
+            const cls = (card.suit === 'hearts' || card.suit === 'diamonds') ? 'card-h' : 'card-s';
+            el.innerHTML = `<span class="${cls}">${SUIT_SYMBOLS[card.suit]}${card.rank}</span>`;
+        } else {
+            el.innerHTML = '';
+        }
+    });
+}
+
+function finishTrick() {
+    const winner = getTrickWinner();
+    if(winner === 'n' || winner === 's') {
+        battle.tricks.ns++;
+    } else {
+        battle.tricks.ew++;
+    }
+
+    battle.currentTrick = [];
+    battle.turn = winner;
+
+    // 清空当前墩显示
+    POSITIONS.forEach(p => {
+        document.getElementById('tc-'+p).innerHTML = '';
+    });
+
+    // 检查游戏结束
+    const totalTricks = battle.tricks.ns + battle.tricks.ew;
+    if(totalTricks === 13) {
+        finishGame();
+        return;
+    }
+
+    renderBattle();
+
+    // AI继续出牌
+    const canAIPlay = battle.turn !== 's' && !(battle.turn === battle.dummy && battle.declarer === 's');
+    if(canAIPlay) {
+        setTimeout(() => aiDoPlay(), 600);
+    }
+}
+
+function getTrickWinner() {
+    const leadSuit = battle.currentTrick[0].suit;
+    let winner = battle.currentTrick[0];
+
+    battle.currentTrick.forEach(card => {
+        if(battle.trumpSuit !== 'nt') {
+            // 有将牌定约
+            if(card.suit === battle.trumpSuit && winner.suit !== battle.trumpSuit) {
+                winner = card;
+            } else if(card.suit === battle.trumpSuit && winner.suit === battle.trumpSuit) {
+                if(R.indexOf(card.rank) < R.indexOf(winner.rank)) winner = card;
+            } else if(card.suit === leadSuit && winner.suit === leadSuit) {
+                if(R.indexOf(card.rank) < R.indexOf(winner.rank)) winner = card;
+            }
+        } else {
+            // 无将定约
+            if(card.suit === leadSuit && R.indexOf(card.rank) < R.indexOf(winner.rank)) {
+                winner = card;
+            }
+        }
+    });
+
+    return winner.pos;
+}
+
+function aiDoPlay() {
+    if(battle.phase !== 'play') return;
+
+    const pos = battle.turn;
+    const validCards = getValidCards(pos);
+    if(validCards.length === 0) return;
+
+    // 简单AI策略
+    let card;
+    if(battle.currentTrick.length === 0) {
+        // 首攻：打最长套的大牌
+        const h = battle.hands[pos];
+        let longestSuit = 'spades';
+        S.forEach(s => {
+            if(h[s].length > h[longestSuit].length) longestSuit = s;
+        });
+        const suitCards = validCards.filter(c => c.s === longestSuit);
+        card = suitCards.length > 0 ? suitCards[0] : validCards[0];
+    } else {
+        // 跟牌
+        const leadSuit = battle.currentTrick[0].suit;
+        const partner = getPartner(pos);
+        const partnerCard = battle.currentTrick.find(c => c.pos === partner);
+        const currentWinner = getCurrentTrickWinner();
+
+        // 如果同伴赢着，打小牌
+        if(currentWinner === partner) {
+            card = validCards[validCards.length - 1];
+        } else {
+            // 尝试赢这墩
+            const winningCards = validCards.filter(c => {
+                if(c.s === leadSuit) {
+                    const winnerCard = battle.currentTrick.find(tc => tc.pos === currentWinner);
+                    return R.indexOf(c.r) < R.indexOf(winnerCard.rank);
+                }
+                return false;
+            });
+            card = winningCards.length > 0 ? winningCards[0] : validCards[validCards.length - 1];
+        }
+    }
+
+    processPlayCard(pos, card.s, card.r);
+}
+
+function getCurrentTrickWinner() {
+    if(battle.currentTrick.length === 0) return null;
+    const leadSuit = battle.currentTrick[0].suit;
+    let winner = battle.currentTrick[0];
+
+    battle.currentTrick.forEach(card => {
+        if(card.suit === leadSuit && R.indexOf(card.rank) < R.indexOf(winner.rank)) {
+            winner = card;
+        }
+    });
+
+    return winner.pos;
+}
+
+function finishGame() {
+    battle.phase = 'end';
+
+    const needed = 6 + battle.contract.level;
+    const declarerTeam = (battle.declarer === 'n' || battle.declarer === 's') ? 'ns' : 'ew';
+    const made = battle.tricks[declarerTeam];
+    const success = made >= needed;
+
+    let title, score, detail;
+    if(declarerTeam === 'ns') {
+        if(success) {
+            const overtricks = made - needed;
+            title = '🎉 定约完成！';
+            score = `${made}墩 (${overtricks > 0 ? '+'+overtricks : '正好'})`;
+            detail = `${battle.contract.level}${battle.contract.suit}定约成功！`;
+            playSound('levelup');
+            spawnConfetti(50);
+        } else {
+            const down = needed - made;
+            title = '😢 定约失败';
+            score = `${made}墩 (宕${down})`;
+            detail = `需要${needed}墩，只做了${made}墩`;
+            playSound('wrong');
+        }
+    } else {
+        if(success) {
+            title = '😢 防守失败';
+            score = `对方完成${battle.contract.level}${battle.contract.suit}`;
+            detail = `对方做了${made}墩`;
+            playSound('wrong');
+        } else {
+            const down = needed - made;
+            title = '🎉 防守成功！';
+            score = `击败${down}墩！`;
+            detail = `成功阻止对方的${battle.contract.level}${battle.contract.suit}定约`;
+            playSound('levelup');
+            spawnConfetti(50);
+        }
+    }
+
+    showBattleResult(title, score, detail);
+}
+
+function showBattleResult(title, score, detail='') {
+    document.getElementById('bt-result').style.display = 'block';
+    document.getElementById('bt-result-title').textContent = title;
+    document.getElementById('bt-result-score').textContent = score;
+    document.getElementById('bt-result-detail').textContent = detail;
+    document.getElementById('bt-new-btn').style.display = 'block';
+    document.getElementById('bt-bids').style.display = 'none';
+    document.getElementById('bt-play-cards').style.display = 'none';
+}
 
 // 注册 Service Worker (PWA离线支持)
 if ('serviceWorker' in navigator) {
