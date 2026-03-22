@@ -460,7 +460,8 @@
     <div class="seq-box" id="qz-seq">
         <table class="seq-table"><thead><tr><th>西</th><th>北(搭档)</th><th>东</th><th>南(你)</th></tr></thead><tbody id="qz-seq-body"></tbody></table>
     </div>
-    <div class="hand-box">
+    <div class="hand-box" style="position:relative;">
+        <button class="copy-btn" onclick="copyQuizInfo()" title="复制">📋</button>
         <div class="hand-label" id="qz-label">你的手牌</div>
         <div class="suit-row"><span class="suit-sym s">♠</span><span class="cards" id="qz-s"></span></div>
         <div class="suit-row"><span class="suit-sym h">♥</span><span class="cards" id="qz-h"></span></div>
@@ -486,7 +487,8 @@
     </div>
     <div class="quiz-head"><span>正确<b id="fb-ok">0</b>/<b id="fb-tot">0</b></span></div>
     <div class="seq-box" id="fb-seq"><table class="seq-table"><thead><tr><th>西</th><th>北</th><th>东</th><th>南</th></tr></thead><tbody id="fb-seq-body"></tbody></table></div>
-    <div class="hand-box">
+    <div class="hand-box" style="position:relative;">
+        <button class="copy-btn" onclick="copyFreeBidInfo()" title="复制">📋</button>
         <div class="hand-label" id="fb-label">你的手牌</div>
         <div class="suit-row"><span class="suit-sym s">♠</span><span class="cards" id="fb-s"></span></div>
         <div class="suit-row"><span class="suit-sym h">♥</span><span class="cards" id="fb-h"></span></div>
@@ -511,7 +513,8 @@
         <button class="week-btn" onclick="setPlayMode('ruff')">将吃</button>
         <button class="week-btn" onclick="setPlayMode('squeeze')">挤牌</button>
     </div>
-    <div class="deal-box">
+    <div class="deal-box" style="position:relative;">
+        <button class="copy-btn" onclick="copyPlayInfo()" title="复制">📋</button>
         <div class="deal-label" id="play-contract">定约: 4♠ 南庄家</div>
         <div class="deal-grid">
             <div class="deal-hand north" id="play-n"></div>
@@ -539,7 +542,8 @@
         <button class="week-btn" onclick="setDefMode('signal')">信号</button>
         <button class="week-btn" onclick="setDefMode('plan')">防守计划</button>
     </div>
-    <div class="deal-box">
+    <div class="deal-box" style="position:relative;">
+        <button class="copy-btn" onclick="copyDefendInfo()" title="复制">📋</button>
         <div class="deal-label" id="def-contract">定约: 3NT 南庄家</div>
         <div class="deal-grid">
             <div class="deal-hand north" id="def-n"></div>
@@ -2509,6 +2513,70 @@ function showCopyDialog(text) {
         </div>
     `;
     document.body.appendChild(dialog);
+}
+
+// 复制叫牌练习信息
+function copyQuizInfo() {
+    const hcp = document.getElementById('qz-hcp').textContent;
+    const seqEl = document.getElementById('qz-seq-body');
+    const seqText = seqEl ? seqEl.innerText.replace(/\s+/g, ' ').trim() : '';
+
+    let text = `【手牌】${hcp}点\n`;
+    text += `♠ ${document.getElementById('qz-s').textContent || '-'}\n`;
+    text += `♥ ${document.getElementById('qz-h').textContent || '-'}\n`;
+    text += `♦ ${document.getElementById('qz-d').textContent || '-'}\n`;
+    text += `♣ ${document.getElementById('qz-c').textContent || '-'}\n`;
+    if(seqText) text += `\n【叫牌】${seqText}`;
+
+    copyToClipboard(text);
+}
+
+// 复制自由练习信息
+function copyFreeBidInfo() {
+    const hcp = document.getElementById('fb-hcp').textContent;
+    const seqEl = document.getElementById('fb-seq-body');
+    const seqText = seqEl ? seqEl.innerText.replace(/\s+/g, ' ').trim() : '';
+
+    let text = `【手牌】${hcp}点\n`;
+    text += `♠ ${document.getElementById('fb-s').textContent || '-'}\n`;
+    text += `♥ ${document.getElementById('fb-h').textContent || '-'}\n`;
+    text += `♦ ${document.getElementById('fb-d').textContent || '-'}\n`;
+    text += `♣ ${document.getElementById('fb-c').textContent || '-'}\n`;
+    if(seqText) text += `\n【叫牌】${seqText}`;
+
+    copyToClipboard(text);
+}
+
+// 复制做庄练习信息
+function copyPlayInfo() {
+    const contract = document.getElementById('play-contract').textContent;
+    const need = document.getElementById('play-need').textContent;
+
+    let text = `【${contract}】需要${need}墩\n\n`;
+    text += `【北家/明手】\n${document.getElementById('play-n').innerText}\n\n`;
+    text += `【南家/庄家】\n${document.getElementById('play-s').innerText}`;
+
+    copyToClipboard(text);
+}
+
+// 复制防守练习信息
+function copyDefendInfo() {
+    const contract = document.getElementById('def-contract').textContent;
+
+    let text = `【${contract}】\n\n`;
+    text += `【北家/明手】\n${document.getElementById('def-n').innerText}\n\n`;
+    text += `【西家/你】\n${document.getElementById('def-w').innerText}`;
+
+    copyToClipboard(text);
+}
+
+// 通用复制函数
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showMascot('📋', '已复制', '可以粘贴到其他地方查询');
+    }).catch(() => {
+        showCopyDialog(text);
+    });
 }
 
 function processBid(bid) {
