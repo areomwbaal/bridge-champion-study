@@ -1072,6 +1072,48 @@ function judgeComp(h,pb,ob) {
     return{bid:'Pass',exp:`【暂时Pass】${p}点但没有好的叫品。在竞争中没有配合也没有好套时先Pass，等待机会`};
 }
 
+// 敌方加倍后的应对（XX再加倍场景）
+function judgeAfterX(h, pb) {
+    const p = hcp(h), l = lens(h);
+
+    // 同伴开1阶高花被X
+    if(pb === '1♥') {
+        if(p >= 10) return {bid: 'XX', exp: `【再加倍显示实力】${p}点！敌方技术性加倍后，XX表示10+点，我方有足够实力。后续可能惩罚对手或进局`};
+        if(l.h >= 3 && p >= 6) return {bid: '2♥', exp: `【支持同伴】${p}点+${l.h}张♥支持。虽然被X，但有配合应该支持同伴`};
+        if(l.h >= 4 && p >= 6) return {bid: '3♥', exp: `【阻击加叫】${p}点有${l.h}张♥！跳叫3♥是阻击性的，抢占叫牌空间`};
+        if(l.s >= 5 && p >= 6) return {bid: '1♠', exp: `【显示长套】${p}点有${l.s}张♠，叫1♠显示5+张♠套`};
+        return {bid: 'Pass', exp: `【暂时Pass】${p}点没有好的叫品。被X后Pass是正常的，等同伴或敌方进一步行动`};
+    }
+
+    if(pb === '1♠') {
+        if(p >= 10) return {bid: 'XX', exp: `【再加倍显示实力】${p}点！敌方技术性加倍后，XX表示10+点，显示我方实力`};
+        if(l.s >= 3 && p >= 6) return {bid: '2♠', exp: `【支持同伴】${p}点+${l.s}张♠支持。有配合应该支持`};
+        if(l.s >= 4 && p >= 6) return {bid: '3♠', exp: `【阻击加叫】${p}点有${l.s}张♠！跳叫3♠抢占空间`};
+        return {bid: 'Pass', exp: `【暂时Pass】${p}点没有好的叫品。Pass等待后续发展`};
+    }
+
+    // 同伴开1阶低花被X
+    if(pb === '1♣' || pb === '1♦') {
+        if(p >= 10) return {bid: 'XX', exp: `【再加倍显示实力】${p}点！XX表示10+点。我方合计22+点，有机会惩罚对手`};
+        if(l.h >= 4 && p >= 6) return {bid: '1♥', exp: `【显示高花】${p}点有${l.h}张♥，自然叫1♥`};
+        if(l.s >= 4 && p >= 6) return {bid: '1♠', exp: `【显示高花】${p}点有${l.s}张♠，自然叫1♠`};
+        const suit = pb === '1♣' ? 'c' : 'd';
+        const suitSym = pb === '1♣' ? '♣' : '♦';
+        if(l[suit] >= 5 && p >= 6) return {bid: '2' + suitSym, exp: `【支持低花】${p}点有${l[suit]}张${suitSym}支持同伴`};
+        return {bid: 'Pass', exp: `【暂时Pass】${p}点，Pass等待。被X后不需要急于行动`};
+    }
+
+    // 同伴开1NT被X
+    if(pb === '1NT') {
+        if(p >= 8) return {bid: 'XX', exp: `【再加倍】${p}点！同伴15-17点，合计23+点。XX表示相信能完成1NT，并增加得分`};
+        if(l.h >= 5) return {bid: '2♥', exp: `【逃跑】${p}点有${l.h}张♥，转移到2♥可能更安全`};
+        if(l.s >= 5) return {bid: '2♠', exp: `【逃跑】${p}点有${l.s}张♠，转移到2♠`};
+        return {bid: 'Pass', exp: `【Pass】${p}点，让同伴决定是否XX或逃跑`};
+    }
+
+    return {bid: 'Pass', exp: `【Pass】${p}点，暂时Pass观望`};
+}
+
 // 再叫判断：你开叫后同伴应叫，你该如何再叫
 function judgeRebid(h, myOpen, partnerResp) {
     const p = hcp(h), l = lens(h), sh = shape(h), b = bal(sh);
@@ -1342,19 +1384,34 @@ function genQ() {
         renderBids('qz-bids', ['Pass','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT','5♣','5♦','6NT']);
     } else {
         seq.classList.add('show');
-        const pbs = ['1♣','1♦','1♥','1♠'];
-        const pb = pbs[Math.floor(Math.random()*4)];
-        let obs = ['2♣','2♦'];
-        if(pb==='1♠')obs=['2♣','2♦','2♥'];
-        if(pb==='1♣')obs=['1♦','1♥','1♠'];
-        if(pb==='1♦')obs=['1♥','1♠','2♣'];
-        if(pb==='1♥')obs=['1♠','2♣','2♦'];
-        const ob = obs[Math.floor(Math.random()*obs.length)];
-        ctx = {pb,ob};
-        document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
-        document.getElementById('qz-label').textContent = '你的手牌';
-        answer = judgeComp(hand,pb,ob);
-        renderBids('qz-bids', ['Pass','X','XX','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+        const pbs = ['1♣','1♦','1♥','1♠','1NT'];
+        const pb = pbs[Math.floor(Math.random()*pbs.length)];
+
+        // 50%概率敌方加倍(X)，50%概率敌方争叫
+        const isDoubled = Math.random() < 0.5;
+
+        if(isDoubled) {
+            // 敌方加倍场景 - XX练习
+            ctx = {pb, ob: 'X'};
+            document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">X</td><td class="q">?</td></tr>`;
+            document.getElementById('qz-label').textContent = '同伴开叫被加倍，你的手牌';
+            answer = judgeAfterX(hand, pb);
+            renderBids('qz-bids', ['Pass','XX','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT']);
+        } else {
+            // 敌方争叫场景
+            let obs = ['2♣','2♦'];
+            if(pb==='1♠')obs=['2♣','2♦','2♥'];
+            if(pb==='1♣')obs=['1♦','1♥','1♠'];
+            if(pb==='1♦')obs=['1♥','1♠','2♣'];
+            if(pb==='1♥')obs=['1♠','2♣','2♦'];
+            if(pb==='1NT')obs=['2♣','2♦','2♥','2♠'];
+            const ob = obs[Math.floor(Math.random()*obs.length)];
+            ctx = {pb, ob};
+            document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
+            document.getElementById('qz-label').textContent = '你的手牌';
+            answer = judgeComp(hand, pb, ob);
+            renderBids('qz-bids', ['Pass','X','XX','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+        }
     }
 
     dispHand('qz', hand);
@@ -1668,18 +1725,32 @@ function newFreeBid() {
         renderBids('fb-bids', ['Pass','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT','5♣','5♦','6NT']);
     } else if(freeBid.mode==='comp') {
         seq.classList.add('show');
-        const pb = ['1♣','1♦','1♥','1♠'][Math.floor(Math.random()*4)];
-        let obs = ['2♣','2♦'];
-        if(pb==='1♠')obs=['2♣','2♦','2♥'];
-        if(pb==='1♣')obs=['1♦','1♥','1♠'];
-        if(pb==='1♦')obs=['1♥','1♠','2♣'];
-        if(pb==='1♥')obs=['1♠','2♣','2♦'];
-        const ob = obs[Math.floor(Math.random()*obs.length)];
-        ctx = {pb,ob};
-        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
-        document.getElementById('fb-label').textContent = '你的手牌';
-        answer = judgeComp(hand,pb,ob);
-        renderBids('fb-bids', ['Pass','X','XX','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+        const pbs = ['1♣','1♦','1♥','1♠','1NT'];
+        const pb = pbs[Math.floor(Math.random()*pbs.length)];
+
+        // 50%概率敌方加倍(X)
+        const isDoubled = Math.random() < 0.5;
+
+        if(isDoubled) {
+            ctx = {pb, ob: 'X'};
+            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">X</td><td class="q">?</td></tr>`;
+            document.getElementById('fb-label').textContent = '同伴开叫被加倍';
+            answer = judgeAfterX(hand, pb);
+            renderBids('fb-bids', ['Pass','XX','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT']);
+        } else {
+            let obs = ['2♣','2♦'];
+            if(pb==='1♠')obs=['2♣','2♦','2♥'];
+            if(pb==='1♣')obs=['1♦','1♥','1♠'];
+            if(pb==='1♦')obs=['1♥','1♠','2♣'];
+            if(pb==='1♥')obs=['1♠','2♣','2♦'];
+            if(pb==='1NT')obs=['2♣','2♦','2♥','2♠'];
+            const ob = obs[Math.floor(Math.random()*obs.length)];
+            ctx = {pb,ob};
+            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
+            document.getElementById('fb-label').textContent = '你的手牌';
+            answer = judgeComp(hand,pb,ob);
+            renderBids('fb-bids', ['Pass','X','XX','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+        }
     } else if(freeBid.mode==='practical') {
         // 实战多轮叫牌场景
         seq.classList.add('show');
