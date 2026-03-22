@@ -2218,23 +2218,24 @@ function renderBidButtons() {
     // Pass按钮
     html += '<button class="battle-bid pass" onclick="makeBid(\'Pass\')">Pass</button>';
 
-    // 叫品按钮
+    // 只显示合法的叫品按钮
     for(let level=1; level<=7; level++) {
         BID_SUITS.forEach(suit => {
-            const bid = level + suit;
-            const disabled = !isValidBid(level, suit);
-            html += `<button class="battle-bid" ${disabled?'disabled':''} onclick="makeBid('${bid}')">${bid}</button>`;
+            if(isValidBid(level, suit)) {
+                const bid = level + suit;
+                html += `<button class="battle-bid" onclick="makeBid('${bid}')">${bid}</button>`;
+            }
         });
     }
 
-    // X/XX按钮
+    // X/XX按钮（只在可以叫时显示）
     const canX = battle.lastBid && !battle.doubled && (battle.bidSeq.length > 0) &&
                  ((POSITIONS.indexOf(battle.turn) % 2) !== (POSITIONS.indexOf(getLastBidder()) % 2));
     const canXX = battle.doubled === 1 &&
                   ((POSITIONS.indexOf(battle.turn) % 2) === (POSITIONS.indexOf(getLastBidder()) % 2));
 
-    html += `<button class="battle-bid x" ${canX?'':'disabled'} onclick="makeBid('X')">X</button>`;
-    html += `<button class="battle-bid xx" ${canXX?'':'disabled'} onclick="makeBid('XX')">XX</button>`;
+    if(canX) html += `<button class="battle-bid x" onclick="makeBid('X')">X</button>`;
+    if(canXX) html += `<button class="battle-bid xx" onclick="makeBid('XX')">XX</button>`;
 
     // 提示按钮
     html += `<button class="battle-bid hint" onclick="showBidHint()">💡提示</button>`;
