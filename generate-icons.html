@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>生成图标</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #1a1a2e; color: #fff; }
+        canvas { border: 1px solid #333; margin: 10px; }
+        .btn { background: #ffd700; color: #000; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; margin: 5px; }
+        a { color: #4ecca3; }
+    </style>
+</head>
+<body>
+    <h1>🏆 桥牌训练营图标生成器</h1>
+    <p>点击按钮下载图标，然后放到同一文件夹里</p>
+
+    <canvas id="c192" width="192" height="192"></canvas>
+    <canvas id="c512" width="512" height="512"></canvas>
+
+    <br>
+    <button class="btn" onclick="download(192)">下载 192x192 图标</button>
+    <button class="btn" onclick="download(512)">下载 512x512 图标</button>
+
+    <script>
+    function drawIcon(size) {
+        const canvas = document.getElementById('c' + size);
+        const ctx = canvas.getContext('2d');
+        const s = size / 192; // 缩放比例
+
+        // 背景渐变
+        const grad = ctx.createLinearGradient(0, 0, size, size);
+        grad.addColorStop(0, '#1a1a2e');
+        grad.addColorStop(1, '#16213e');
+
+        // 圆角矩形背景
+        const r = 40 * s;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, size, size, r);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // 金色圆环
+        ctx.beginPath();
+        ctx.arc(size/2, size/2, 55*s, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 8 * s;
+        ctx.stroke();
+
+        // 花色符号
+        ctx.font = `bold ${45*s}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // 红桃 (上)
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillText('♥', size/2, 45*s);
+
+        // 黑桃 (左)
+        ctx.fillStyle = '#333';
+        ctx.font = `bold ${38*s}px Arial`;
+        ctx.fillText('♠', 45*s, size/2);
+
+        // 方块 (右)
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillText('♦', size - 45*s, size/2);
+
+        // 梅花 (下)
+        ctx.fillStyle = '#333';
+        ctx.fillText('♣', size/2, size - 45*s);
+
+        // 中央奖杯
+        ctx.font = `${35*s}px Arial`;
+        ctx.fillText('🏆', size/2, size/2);
+    }
+
+    function download(size) {
+        const canvas = document.getElementById('c' + size);
+        const link = document.createElement('a');
+        link.download = `icon-${size}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    // 绘制两个尺寸
+    drawIcon(192);
+    drawIcon(512);
+    </script>
+</body>
+</html>

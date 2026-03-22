@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>桥牌冠军训练营 - 200天完整课程</title>
+
+    <!-- PWA 支持 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffd700">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="桥牌训练">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <!-- 防止iOS点击延迟 -->
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 12px;
+            background: linear-gradient(180deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+        }
+
+        .header { text-align: center; padding: 10px 0 15px; }
+        .header h1 { color: #ffd700; font-size: 20px; margin-bottom: 3px; }
+        .header p { color: #888; font-size: 12px; }
+        .goal { display: inline-block; background: linear-gradient(90deg, #ffd700, #ff6b6b); color: #000; padding: 4px 15px; border-radius: 15px; font-size: 11px; font-weight: bold; margin-top: 8px; }
+        .daily-tip { background: rgba(78, 204, 163, 0.15); border: 1px dashed #4ecca3; border-radius: 8px; padding: 8px 12px; margin-top: 10px; font-size: 11px; color: #4ecca3; animation: popIn 0.5s ease-out; }
+
+        .nav { display: flex; justify-content: center; gap: 3px; margin-bottom: 12px; background: #111; border-radius: 8px; padding: 4px; }
+        .nav-btn { flex: 1; padding: 8px 5px; border: none; background: transparent; color: #666; border-radius: 6px; cursor: pointer; font-size: 11px; transition: all 0.2s; }
+        .nav-btn.active { background: #ffd700; color: #000; font-weight: bold; }
+        .nav-btn:hover:not(.active) { color: #ffd700; }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* 总览 */
+        .overview-card { background: linear-gradient(135deg, #1e3a5f, #16213e); border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px solid #333; }
+        .overview-card h3 { color: #ffd700; font-size: 14px; margin-bottom: 10px; }
+        .stats-row { display: flex; justify-content: space-around; text-align: center; }
+        .stat-item .num { font-size: 24px; font-weight: bold; color: #4ecca3; }
+        .stat-item .label { font-size: 10px; color: #888; }
+        .progress-bar { height: 8px; background: #222; border-radius: 4px; margin-top: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #4ecca3, #ffd700, #ff6b6b); border-radius: 4px; transition: width 0.5s; }
+
+        .phase-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+        .phase-card { background: #16213e; border-radius: 10px; padding: 12px 8px; text-align: center; cursor: pointer; border: 2px solid #333; transition: all 0.2s; }
+        .phase-card:hover { border-color: #ffd700; transform: translateY(-2px); }
+        .phase-card.active { border-color: #ffd700; background: #1e3a5f; }
+        .phase-card.locked { opacity: 0.4; cursor: not-allowed; }
+        .phase-card .icon { font-size: 24px; }
+        .phase-card .name { font-size: 11px; color: #fff; margin-top: 5px; }
+        .phase-card .info { font-size: 9px; color: #888; margin-top: 2px; }
+        .phase-card .progress-mini { height: 3px; background: #333; border-radius: 2px; margin-top: 6px; }
+        .phase-card .progress-mini-fill { height: 100%; background: #4ecca3; border-radius: 2px; }
+
+        .week-row { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; }
+        .week-btn { padding: 5px 10px; border: 1px solid #333; background: transparent; color: #666; border-radius: 12px; cursor: pointer; font-size: 10px; }
+        .week-btn.active { border-color: #4ecca3; color: #4ecca3; }
+        .week-btn.done { background: #1e5128; border-color: #4ecca3; color: #4ecca3; }
+        .week-btn.unlocked { border-color: #555; color: #aaa; }
+
+        .day-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 12px; }
+        .day-btn { aspect-ratio: 1; border: 2px solid #333; background: #16213e; color: #555; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; transition: all 0.15s; }
+        .day-btn:hover { transform: scale(1.1); }
+        .day-btn:active { transform: scale(0.95); }
+        .day-btn.unlocked { border-color: #4ecca3; color: #fff; }
+        .day-btn.current { background: #ffd700; color: #000; border-color: #ffd700; animation: pulse 2s infinite; }
+        .day-btn.done { background: #1e5128; border-color: #4ecca3; color: #4ecca3; }
+        .day-btn .ico { font-size: 10px; }
+
+        .lesson-box { background: #16213e; border-radius: 10px; padding: 15px; margin-bottom: 12px; border-left: 3px solid #ffd700; }
+        .lesson-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .lesson-phase { background: #ffd700; color: #000; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; }
+        .lesson-title { flex: 1; font-size: 14px; }
+        .lesson-badge { padding: 2px 8px; border-radius: 8px; font-size: 10px; }
+        .lesson-badge.new { background: #e74c3c; color: #fff; }
+        .lesson-badge.done { background: #4ecca3; color: #000; }
+
+        .lesson-body { font-size: 13px; line-height: 1.7; }
+        .lesson-body h4 { color: #ffd700; margin: 12px 0 6px; font-size: 13px; border-bottom: 1px solid #333; padding-bottom: 3px; }
+        .lesson-body h4:first-child { margin-top: 0; }
+        .lesson-body .box { background: #0f3460; padding: 10px; border-radius: 6px; margin: 8px 0; font-size: 12px; }
+        .lesson-body .tip { background: #1e5128; padding: 10px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #4ecca3; font-size: 12px; }
+        .lesson-body .warn { background: #5c1e1e; padding: 10px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #e74c3c; font-size: 12px; }
+        .lesson-body .formula { background: #000; padding: 8px 12px; border-radius: 6px; font-family: monospace; color: #4ecca3; margin: 8px 0; font-size: 13px; }
+        .lesson-body .hl { color: #ffd700; font-weight: bold; }
+
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; margin-bottom: 6px; transition: all 0.2s; }
+        .btn:hover { transform: translateY(-1px); }
+        .btn.primary { background: linear-gradient(90deg, #ffd700, #ff8c00); color: #000; }
+        .btn.secondary { background: #333; color: #aaa; }
+        .btn:disabled { background: #222; color: #555; cursor: not-allowed; transform: none; }
+
+        .reset-link { display: block; text-align: center; color: #e74c3c; font-size: 11px; margin-top: 15px; cursor: pointer; }
+
+        /* 练习页 */
+        .quiz-head { background: #111; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 12px; }
+        .quiz-head span { color: #888; }
+        .quiz-head b { color: #ffd700; }
+
+        .seq-box { background: #0f3460; border-radius: 8px; padding: 10px; margin-bottom: 10px; display: none; }
+        .seq-box.show { display: block; }
+        .seq-table { width: 100%; text-align: center; font-size: 11px; }
+        .seq-table th { color: #666; font-weight: normal; padding: 3px; }
+        .seq-table td { padding: 6px 3px; font-size: 16px; }
+        .seq-table .partner { color: #ffd700; }
+        .seq-table .opp { color: #e74c3c; }
+        .seq-table .you { color: #4ecca3; font-weight: bold; }
+        .seq-table .q { color: #ffd700; font-size: 20px; }
+
+        .hand-box { background: #16213e; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .hand-label { text-align: center; font-size: 11px; color: #888; margin-bottom: 6px; }
+        .suit-row { display: flex; align-items: center; margin: 4px 0; font-size: 18px; }
+        .suit-sym { width: 28px; font-size: 22px; }
+        .s, .c { color: #333; text-shadow: 0 0 2px #fff; }
+        .h, .d { color: #e74c3c; }
+        .cards { letter-spacing: 2px; }
+        .hand-stats { display: flex; justify-content: space-around; margin-top: 10px; padding-top: 8px; border-top: 1px solid #333; text-align: center; }
+        .hand-stats .v { font-size: 18px; font-weight: bold; color: #ffd700; }
+        .hand-stats .l { font-size: 9px; color: #888; }
+
+        .bids { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 10px; }
+        .bid { padding: 8px 2px; border: none; border-radius: 6px; background: #0f3460; color: #fff; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+        .bid:hover { background: #ffd700; color: #000; transform: scale(1.08); }
+        .bid:active { transform: scale(0.95); }
+        .bid.pass { background: #444; }
+        .bid.x { background: #c0392b; }
+        .bid.xx { background: #8e44ad; }
+        .bid.sel { background: #ffd700; color: #000; }
+
+        .result-box { padding: 12px; border-radius: 8px; margin-bottom: 10px; display: none; }
+        .result-box.correct { display: block; background: #1e5128; border: 1px solid #4ecca3; animation: popIn 0.3s ease-out; }
+        .result-box.wrong { display: block; background: #5c1e1e; border: 1px solid #e74c3c; animation: shake 0.4s ease-out; }
+        .result-box h4 { margin-bottom: 6px; font-size: 14px; }
+        .result-box.correct h4 { color: #4ecca3; }
+        .result-box.wrong h4 { color: #e74c3c; }
+        .result-box p { font-size: 12px; line-height: 1.5; }
+
+        /* 趣味动画 */
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px #ffd700; }
+            50% { box-shadow: 0 0 20px #ffd700, 0 0 30px #ff8c00; }
+        }
+        @keyframes float {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .streak-badge {
+            display: inline-block;
+            background: linear-gradient(90deg, #ff6b6b, #ffd700);
+            color: #000;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 8px;
+            animation: pulse 1s infinite;
+        }
+        .streak-badge.fire { animation: glow 0.5s infinite; }
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+            z-index: 9999;
+            animation: float 2s ease-out forwards;
+        }
+        .mascot-msg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 20px 30px;
+            border-radius: 15px;
+            border: 3px solid #ffd700;
+            text-align: center;
+            z-index: 10000;
+            animation: popIn 0.3s ease-out;
+        }
+        .mascot-msg .emoji { font-size: 50px; margin-bottom: 10px; }
+        .mascot-msg .text { font-size: 16px; color: #fff; }
+        .mascot-msg .sub { font-size: 12px; color: #ffd700; margin-top: 8px; }
+
+        /* 做庄练习 */
+        .deal-box { background: #0a1628; border-radius: 10px; padding: 15px; margin-bottom: 10px; }
+        .deal-label { text-align: center; font-size: 12px; color: #ffd700; margin-bottom: 8px; }
+        .deal-grid { display: grid; grid-template-columns: 1fr 2fr 1fr; grid-template-rows: auto auto auto; gap: 5px; }
+        .deal-hand { background: #16213e; border-radius: 6px; padding: 8px; font-size: 11px; }
+        .deal-hand.north { grid-column: 2; }
+        .deal-hand.west { grid-row: 2; }
+        .deal-hand.east { grid-column: 3; grid-row: 2; }
+        .deal-hand.south { grid-column: 2; grid-row: 3; border: 2px solid #ffd700; }
+        .deal-hand .suit { margin: 2px 0; }
+        .deal-center { grid-column: 2; grid-row: 2; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #888; }
+        .trick-info { text-align: center; margin-top: 10px; font-size: 12px; }
+        .trick-info b { color: #ffd700; }
+
+        .play-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px; }
+        .play-btn { padding: 12px 5px; border: none; border-radius: 6px; background: #16213e; color: #fff; font-size: 14px; cursor: pointer; transition: all 0.15s; }
+        .play-btn:hover { background: #ffd700; color: #000; transform: scale(1.05); }
+        .play-btn:active { transform: scale(0.95); }
+        .play-btn.sel { background: #ffd700; color: #000; }
+
+        /* 弹窗 */
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 100; }
+        .modal.show { display: flex; }
+        .modal-box { background: linear-gradient(135deg, #1e3a5f, #16213e); border-radius: 12px; padding: 25px; text-align: center; width: 85%; max-width: 300px; border: 2px solid #ffd700; }
+        .modal-icon { font-size: 40px; margin-bottom: 10px; }
+        .modal-title { font-size: 18px; margin-bottom: 8px; }
+        .modal-title.ok { color: #ffd700; }
+        .modal-title.fail { color: #e74c3c; }
+        .modal-text { font-size: 12px; color: #aaa; margin-bottom: 15px; line-height: 1.5; }
+        .modal-btn { padding: 10px 30px; border: none; border-radius: 6px; background: #ffd700; color: #000; font-size: 14px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🏆 桥牌冠军训练营</h1>
+    <p>200天完整课程 · 叫牌+做庄+防守</p>
+    <div class="goal">🎯 目标：奥运会</div>
+    <div id="daily-tip" class="daily-tip"></div>
+</div>
+
+<div class="nav">
+    <button class="nav-btn active" onclick="showPage('plan')">📚 训练</button>
+    <button class="nav-btn" onclick="showPage('bid')">🃏 叫牌</button>
+    <button class="nav-btn" onclick="showPage('play')">👑 做庄</button>
+    <button class="nav-btn" onclick="showPage('defend')">🛡️ 防守</button>
+</div>
+
+<!-- 训练计划页 -->
+<div class="page active" id="page-plan">
+    <div class="overview-card">
+        <h3>📊 训练进度</h3>
+        <div class="stats-row">
+            <div class="stat-item"><div class="num" id="stat-days">0</div><div class="label">完成天数</div></div>
+            <div class="stat-item"><div class="num" id="stat-stars">0</div><div class="label">获得星星</div></div>
+            <div class="stat-item"><div class="num" id="stat-pct">0%</div><div class="label">总进度</div></div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="main-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="phase-grid" id="phase-grid"></div>
+    <div class="week-row" id="week-row"></div>
+    <div class="day-row" id="day-row"></div>
+
+    <div class="lesson-box" id="lesson-box">
+        <div class="lesson-head">
+            <span class="lesson-phase" id="l-phase">叫牌基础</span>
+            <span class="lesson-title" id="l-title">第1天</span>
+            <span class="lesson-badge new" id="l-badge">今日</span>
+        </div>
+        <div class="lesson-body" id="l-body"></div>
+    </div>
+
+    <button class="btn primary" id="start-btn" onclick="startQuiz()">开始训练 💪</button>
+    <span class="reset-link" onclick="resetAll()">重置进度</span>
+</div>
+
+<!-- 练习页 -->
+<div class="page" id="page-quiz">
+    <div class="quiz-head">
+        <span>第<b id="qz-day">1</b>天</span>
+        <span><b id="qz-cur">1</b>/<b id="qz-tot">10</b></span>
+        <span>正确<b id="qz-ok">0</b></span>
+    </div>
+    <div class="seq-box" id="qz-seq">
+        <table class="seq-table"><thead><tr><th>西</th><th>北(搭档)</th><th>东</th><th>南(你)</th></tr></thead><tbody id="qz-seq-body"></tbody></table>
+    </div>
+    <div class="hand-box">
+        <div class="hand-label" id="qz-label">你的手牌</div>
+        <div class="suit-row"><span class="suit-sym s">♠</span><span class="cards" id="qz-s"></span></div>
+        <div class="suit-row"><span class="suit-sym h">♥</span><span class="cards" id="qz-h"></span></div>
+        <div class="suit-row"><span class="suit-sym d">♦</span><span class="cards" id="qz-d"></span></div>
+        <div class="suit-row"><span class="suit-sym c">♣</span><span class="cards" id="qz-c"></span></div>
+        <div class="hand-stats"><div><div class="v" id="qz-hcp">0</div><div class="l">HCP</div></div><div><div class="v" id="qz-shape">-</div><div class="l">牌型</div></div></div>
+    </div>
+    <div class="bids" id="qz-bids"></div>
+    <div class="result-box" id="qz-res"><h4 id="qz-res-t"></h4><p id="qz-res-p"></p></div>
+    <button class="btn primary" id="qz-next" onclick="nextQ()" style="display:none">下一题</button>
+    <button class="btn secondary" onclick="exitQuiz()">返回</button>
+</div>
+
+<!-- 自由叫牌练习 -->
+<div class="page" id="page-bid">
+    <div class="week-row">
+        <button class="week-btn active" onclick="setBidMode('open')">开叫</button>
+        <button class="week-btn" onclick="setBidMode('resp')">应叫</button>
+        <button class="week-btn" onclick="setBidMode('comp')">竞叫</button>
+        <button class="week-btn" onclick="setBidMode('rebid')">再叫</button>
+        <button class="week-btn" onclick="setBidMode('slam')">满贯</button>
+    </div>
+    <div class="quiz-head"><span>正确<b id="fb-ok">0</b>/<b id="fb-tot">0</b></span></div>
+    <div class="seq-box" id="fb-seq"><table class="seq-table"><thead><tr><th>西</th><th>北</th><th>东</th><th>南</th></tr></thead><tbody id="fb-seq-body"></tbody></table></div>
+    <div class="hand-box">
+        <div class="hand-label" id="fb-label">你的手牌</div>
+        <div class="suit-row"><span class="suit-sym s">♠</span><span class="cards" id="fb-s"></span></div>
+        <div class="suit-row"><span class="suit-sym h">♥</span><span class="cards" id="fb-h"></span></div>
+        <div class="suit-row"><span class="suit-sym d">♦</span><span class="cards" id="fb-d"></span></div>
+        <div class="suit-row"><span class="suit-sym c">♣</span><span class="cards" id="fb-c"></span></div>
+        <div class="hand-stats"><div><div class="v" id="fb-hcp">0</div><div class="l">HCP</div></div><div><div class="v" id="fb-shape">-</div><div class="l">牌型</div></div></div>
+    </div>
+    <div class="bids" id="fb-bids"></div>
+    <div class="result-box" id="fb-res"><h4 id="fb-res-t"></h4><p id="fb-res-p"></p></div>
+    <button class="btn primary" onclick="newFreeBid()">下一题</button>
+</div>
+
+<!-- 做庄练习 -->
+<div class="page" id="page-play">
+    <div class="overview-card">
+        <h3>👑 做庄训练</h3>
+        <p style="font-size:12px;color:#aaa;margin-top:5px;">学习飞牌、建立长套、挤牌等做庄技巧</p>
+    </div>
+    <div class="week-row">
+        <button class="week-btn active" onclick="setPlayMode('finesse')">飞牌</button>
+        <button class="week-btn" onclick="setPlayMode('establish')">建立长套</button>
+        <button class="week-btn" onclick="setPlayMode('ruff')">将吃</button>
+        <button class="week-btn" onclick="setPlayMode('squeeze')">挤牌</button>
+    </div>
+    <div class="deal-box">
+        <div class="deal-label" id="play-contract">定约: 4♠ 南庄家</div>
+        <div class="deal-grid">
+            <div class="deal-hand north" id="play-n"></div>
+            <div class="deal-hand west" id="play-w"></div>
+            <div class="deal-center">N<br>W E<br>S</div>
+            <div class="deal-hand east" id="play-e"></div>
+            <div class="deal-hand south" id="play-s"></div>
+        </div>
+        <div class="trick-info">需要赢得 <b id="play-need">10</b> 墩</div>
+    </div>
+    <div class="lesson-body" id="play-lesson"></div>
+    <div class="play-options" id="play-opts"></div>
+    <div class="result-box" id="play-res"><h4 id="play-res-t"></h4><p id="play-res-p"></p></div>
+    <button class="btn primary" onclick="newPlayQ()">下一题</button>
+</div>
+
+<!-- 防守练习 -->
+<div class="page" id="page-defend">
+    <div class="overview-card">
+        <h3>🛡️ 防守训练</h3>
+        <p style="font-size:12px;color:#aaa;margin-top:5px;">学习首攻选择、信号系统、防守配合</p>
+    </div>
+    <div class="week-row">
+        <button class="week-btn active" onclick="setDefMode('lead')">首攻</button>
+        <button class="week-btn" onclick="setDefMode('signal')">信号</button>
+        <button class="week-btn" onclick="setDefMode('plan')">防守计划</button>
+    </div>
+    <div class="deal-box">
+        <div class="deal-label" id="def-contract">定约: 3NT 南庄家</div>
+        <div class="deal-grid">
+            <div class="deal-hand north" id="def-n"></div>
+            <div class="deal-hand west" id="def-w"></div>
+            <div class="deal-center">N<br>W E<br>S</div>
+            <div class="deal-hand east" id="def-e"></div>
+            <div class="deal-hand south" id="def-s">(暗手)</div>
+        </div>
+        <div class="trick-info">你是<b id="def-pos">西家</b>，需要击败定约</div>
+    </div>
+    <div class="lesson-body" id="def-lesson"></div>
+    <div class="play-options" id="def-opts"></div>
+    <div class="result-box" id="def-res"><h4 id="def-res-t"></h4><p id="def-res-p"></p></div>
+    <button class="btn primary" onclick="newDefQ()">下一题</button>
+</div>
+
+<!-- 弹窗 -->
+<div class="modal" id="modal">
+    <div class="modal-box">
+        <div class="modal-icon" id="m-icon">🏆</div>
+        <div class="modal-title ok" id="m-title">完成!</div>
+        <div class="modal-text" id="m-text"></div>
+        <button class="modal-btn" onclick="closeModal()">继续</button>
+    </div>
+</div>
+
+<script>
+// ============ 趣味系统 ============
+// 音效系统
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function getAudioCtx() {
+    if (!audioCtx) audioCtx = new AudioCtx();
+    return audioCtx;
+}
+
+function playSound(type) {
+    try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'correct') {
+            // 欢快的上升音
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523, ctx.currentTime); // C5
+            osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1); // E5
+            osc.frequency.setValueAtTime(784, ctx.currentTime + 0.2); // G5
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialDecayTo && gain.gain.exponentialDecayTo(0.01, ctx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.01, ctx.currentTime + 0.4);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.4);
+        } else if (type === 'wrong') {
+            // 低沉的下降音
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, ctx.currentTime);
+            osc.frequency.setValueAtTime(200, ctx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+            gain.gain.setValueAtTime(0.01, ctx.currentTime + 0.3);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.3);
+        } else if (type === 'streak') {
+            // 连击特效音
+            osc.type = 'sine';
+            [523, 659, 784, 1047].forEach((f, i) => {
+                osc.frequency.setValueAtTime(f, ctx.currentTime + i * 0.08);
+            });
+            gain.gain.setValueAtTime(0.25, ctx.currentTime);
+            gain.gain.setValueAtTime(0.01, ctx.currentTime + 0.4);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.4);
+        } else if (type === 'levelup') {
+            // 升级音效
+            osc.type = 'sine';
+            [392, 523, 659, 784, 1047].forEach((f, i) => {
+                osc.frequency.setValueAtTime(f, ctx.currentTime + i * 0.1);
+            });
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.setValueAtTime(0.01, ctx.currentTime + 0.6);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.6);
+        }
+    } catch(e) { /* 静音失败也没关系 */ }
+}
+
+// 连击系统
+let streak = { count: 0, best: 0 };
+function updateStreak(correct) {
+    if (correct) {
+        streak.count++;
+        if (streak.count > streak.best) streak.best = streak.count;
+
+        // 连击里程碑
+        if (streak.count === 3) showMascot('🔥', '三连正确！', '你太棒了，继续保持！');
+        else if (streak.count === 5) { showMascot('⭐', '五连击！', '冠军潜质！'); playSound('streak'); }
+        else if (streak.count === 10) { showMascot('🏆', '十连击！！', '未来的奥运冠军就是你！'); playSound('levelup'); }
+        else if (streak.count === 20) { showMascot('👑', '二十连击！！！', '你简直是桥牌天才！'); playSound('levelup'); }
+    } else {
+        if (streak.count >= 3) showMascot('💪', `连击终止于${streak.count}次`, '没关系，重新开始！');
+        streak.count = 0;
+    }
+}
+
+// 撒花效果
+function spawnConfetti(count = 30) {
+    const colors = ['#ffd700', '#ff6b6b', '#4ecca3', '#ff8c00', '#9b59b6', '#3498db'];
+    const shapes = ['●', '■', '★', '♠', '♥', '♦', '♣'];
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+            const conf = document.createElement('div');
+            conf.className = 'confetti';
+            conf.style.left = Math.random() * 100 + 'vw';
+            conf.style.top = '100vh';
+            conf.style.color = colors[Math.floor(Math.random() * colors.length)];
+            conf.style.fontSize = (Math.random() * 15 + 10) + 'px';
+            conf.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+            document.body.appendChild(conf);
+            setTimeout(() => conf.remove(), 2000);
+        }, i * 30);
+    }
+}
+
+// 吉祥物消息
+function showMascot(emoji, text, sub) {
+    const existing = document.querySelector('.mascot-msg');
+    if (existing) existing.remove();
+
+    const msg = document.createElement('div');
+    msg.className = 'mascot-msg';
+    msg.innerHTML = `<div class="emoji">${emoji}</div><div class="text">${text}</div><div class="sub">${sub}</div>`;
+    document.body.appendChild(msg);
+
+    setTimeout(() => msg.remove(), 2000);
+}
+
+// 鼓励语
+const CHEERS_CORRECT = [
+    '太棒了！🎉', '正确！你真聪明！✨', '完美！👏', '漂亮！继续加油！🌟',
+    '答对啦！你越来越厉害了！💪', '很好！这道题不简单呢！🏅', '正确！奥运冠军就是这样练成的！🥇',
+    '好厉害！💯', '答对了！你的进步很大！📈', '没错！你已经掌握了！✅'
+];
+const CHEERS_WRONG = [
+    '没关系，再想想！💭', '差一点点，下次一定行！💪', '这题有点难，记住答案就好！📝',
+    '加油！失败是成功之母！🌱', '不要灰心，学习就是这样的！📚', '错误也是学习！记住正确答案哦！✏️'
+];
+function getCheer(correct) {
+    const arr = correct ? CHEERS_CORRECT : CHEERS_WRONG;
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// 更新连击显示
+function getStreakHTML() {
+    if (streak.count < 2) return '';
+    let cls = streak.count >= 5 ? 'streak-badge fire' : 'streak-badge';
+    return `<span class="${cls}">🔥 ${streak.count}连击</span>`;
+}
+
+// ============ 200天课程数据 ============
+const PHASES = [
+    { id:1, name:'叫牌基础', icon:'📖', days:28 },
+    { id:2, name:'应叫体系', icon:'🤝', days:28 },
+    { id:3, name:'竞叫技术', icon:'⚔️', days:21 },
+    { id:4, name:'再叫艺术', icon:'🔄', days:21 },
+    { id:5, name:'满贯探索', icon:'🚀', days:14 },
+    { id:6, name:'高级约定', icon:'📋', days:14 },
+    { id:7, name:'做庄技巧', icon:'👑', days:35 },
+    { id:8, name:'防守技术', icon:'🛡️', days:28 },
+    { id:9, name:'综合实战', icon:'🎯', days:11 },
+];
+
+// 课程内容生成
+const LESSONS = [];
+let dayCounter = 1;
+
+// 阶段1-6: 叫牌 (126天)
+const bidLessons = [
+    // 阶段1: 叫牌基础
+    {t:'扑克牌与桥牌基础',c:`<h4>🎴 桥牌入门</h4>桥牌使用52张牌，4人分两队。<div class="box">花色大小：♠ > ♥ > ♦ > ♣<br>牌大小：A>K>Q>J>10>...>2</div>`,type:'open'},
+    {t:'大牌点(HCP)计算',c:`<h4>📊 HCP计算</h4><div class="formula">A=4 K=3 Q=2 J=1</div>一副牌共40HCP，平均每人10点。`,type:'open'},
+    {t:'牌型分析',c:`<h4>📐 牌型</h4><div class="box">均型：4-3-3-3, 4-4-3-2, 5-3-3-2<br>非均型：5-4-3-1, 6-4-2-1等</div>`,type:'open'},
+    {t:'开叫条件',c:`<h4>🚪 开叫门槛</h4><div class="formula">标准开叫 = 12+ HCP</div>`,type:'open'},
+    {t:'1阶高花开叫',c:`<h4>♠♥ 高花开叫</h4><div class="formula">1♥/1♠ = 12-21点 + 5+张</div>`,type:'open'},
+    {t:'1阶低花开叫',c:`<h4>♦♣ 低花开叫</h4><div class="formula">1♦ = 4+♦无5张高花<br>1♣ = 无5张高花无4张♦</div>`,type:'open'},
+    {t:'第1周测验',c:`<h4>🏆 测验</h4>开叫基础测验，80%通过`,type:'open',test:true},
+
+    {t:'1NT开叫',c:`<h4>1️⃣ 1NT开叫</h4><div class="formula">15-17 HCP + 均型</div>`,type:'open'},
+    {t:'2NT开叫',c:`<h4>2️⃣ 2NT开叫</h4><div class="formula">20-21 HCP + 均型</div>`,type:'open'},
+    {t:'弱二开叫',c:`<h4>😈 弱二开叫</h4><div class="formula">2♦/♥/♠ = 5-10点 + 好的6张套</div>`,type:'open'},
+    {t:'强2♣开叫',c:`<h4>💪 2♣开叫</h4><div class="formula">2♣ = 22+ HCP</div>`,type:'open'},
+    {t:'开叫综合练习1',c:`<h4>📝 练习</h4>`,type:'open'},
+    {t:'开叫综合练习2',c:`<h4>📝 练习</h4>`,type:'open'},
+    {t:'第2周测验',c:`<h4>🏆 测验</h4>`,type:'open',test:true},
+
+    {t:'阻击开叫',c:`<h4>🛡️ 阻击</h4>3阶=7张套，4阶=8张套`,type:'open'},
+    {t:'开叫复习1',c:`<h4>📖 复习</h4>`,type:'open'},
+    {t:'开叫复习2',c:`<h4>📖 复习</h4>`,type:'open'},
+    {t:'开叫复习3',c:`<h4>📖 复习</h4>`,type:'open'},
+    {t:'开叫复习4',c:`<h4>📖 复习</h4>`,type:'open'},
+    {t:'开叫实战1',c:`<h4>🎮 实战</h4>`,type:'open'},
+    {t:'第3周测验',c:`<h4>🏆 测验</h4>`,type:'open',test:true},
+
+    {t:'开叫总复习1',c:`<h4>📚 总复习</h4>`,type:'open'},
+    {t:'开叫总复习2',c:`<h4>📚 总复习</h4>`,type:'open'},
+    {t:'开叫总复习3',c:`<h4>📚 总复习</h4>`,type:'open'},
+    {t:'开叫总复习4',c:`<h4>📚 总复习</h4>`,type:'open'},
+    {t:'开叫总复习5',c:`<h4>📚 总复习</h4>`,type:'open'},
+    {t:'开叫总复习6',c:`<h4>📚 总复习</h4>`,type:'open'},
+    {t:'阶段1结业',c:`<h4>🎓 结业测验</h4>90%通过`,type:'open',test:true,final:true},
+];
+
+// 阶段2: 应叫
+const respLessons = [
+    {t:'应叫概述',c:`<h4>🤝 应叫</h4><div class="formula">应叫门槛 = 6+ HCP</div>`,type:'resp'},
+    {t:'对1♥应叫',c:`<h4>❤️ 1♥应叫</h4><div class="box">2♥:6-10点3+支持<br>3♥:10-12点4+支持<br>4♥:进局</div>`,type:'resp',pb:['1♥']},
+    {t:'对1♠应叫',c:`<h4>♠ 1♠应叫</h4>`,type:'resp',pb:['1♠']},
+    {t:'高花应叫练习',c:`<h4>📝 练习</h4>`,type:'resp',pb:['1♥','1♠']},
+    {t:'对1♣应叫',c:`<h4>♣ 1♣应叫</h4>优先叫高花`,type:'resp',pb:['1♣']},
+    {t:'对1♦应叫',c:`<h4>♦ 1♦应叫</h4>`,type:'resp',pb:['1♦']},
+    {t:'第1周测验',c:`<h4>🏆 测验</h4>`,type:'resp',test:true},
+
+    {t:'对1NT应叫概述',c:`<h4>1️⃣ 1NT应叫</h4>`,type:'resp',pb:['1NT']},
+    {t:'Stayman问叫',c:`<h4>🔍 Stayman</h4><div class="formula">2♣ = 8+点 + 4张高花</div>`,type:'resp',pb:['1NT']},
+    {t:'Jacoby转移叫',c:`<h4>🔄 转移叫</h4><div class="formula">2♦→♥  2♥→♠</div>`,type:'resp',pb:['1NT']},
+    {t:'1NT应叫综合',c:`<h4>📝 综合</h4>`,type:'resp',pb:['1NT']},
+    {t:'对2NT应叫',c:`<h4>2️⃣ 2NT应叫</h4>`,type:'resp'},
+    {t:'对强2♣应叫',c:`<h4>💪 2♣应叫</h4>2♦等叫`,type:'resp'},
+    {t:'第2周测验',c:`<h4>🏆 测验</h4>`,type:'resp',test:true},
+];
+// 补齐到28天
+while(respLessons.length < 28) {
+    if(respLessons.length === 27) respLessons.push({t:'阶段2结业',c:`<h4>🎓 结业</h4>`,type:'resp',test:true,final:true});
+    else respLessons.push({t:`应叫练习${respLessons.length-13}`,c:`<h4>📝 练习</h4>`,type:'resp'});
+}
+
+// 阶段3: 竞叫
+const compLessons = [];
+for(let i=0;i<21;i++) {
+    if(i===6||i===13) compLessons.push({t:`第${Math.floor(i/7)+1}周测验`,c:`<h4>🏆 测验</h4>`,type:'comp',test:true});
+    else if(i===20) compLessons.push({t:'阶段3结业',c:`<h4>🎓 结业</h4>`,type:'comp',test:true,final:true});
+    else compLessons.push({t:['竞叫概述','负加倍基础','负加倍进阶','支持加倍','Cue-bid','竞叫练习','争叫','争叫应叫','平衡叫','技术加倍','惩罚加倍','竞叫练习','牺牲叫','竞叫策略','复习1','复习2','复习3','复习4'][i]||`竞叫${i+1}`,c:`<h4>⚔️ ${i<6?'基础':'进阶'}</h4>`,type:'comp'});
+}
+
+// 阶段4-6简化
+const rebidLessons = [], slamLessons = [], advLessons = [];
+for(let i=0;i<21;i++) rebidLessons.push({t:i===20?'阶段4结业':`再叫${i+1}`,c:`<h4>🔄 再叫</h4>`,type:'rebid',test:i===6||i===13||i===20,final:i===20});
+for(let i=0;i<14;i++) slamLessons.push({t:i===13?'阶段5结业':`满贯${i+1}`,c:`<h4>🚀 满贯</h4>`,type:'slam',test:i===6||i===13,final:i===13});
+for(let i=0;i<14;i++) advLessons.push({t:i===13?'阶段6结业':`高级${i+1}`,c:`<h4>📋 高级</h4>`,type:'adv',test:i===6||i===13,final:i===13});
+
+// 阶段7: 做庄 (35天)
+const playLessons = [
+    {t:'做庄概述',c:`<h4>👑 做庄基础</h4>做庄的目标是完成定约，需要赢得足够的墩数。<div class="box">小满贯(6阶)=12墩<br>大满贯(7阶)=13墩<br>成局=9-10墩</div>`,type:'play'},
+    {t:'赢墩计划',c:`<h4>🎯 计划</h4>数赢墩(NT)或输墩(有将)，制定打牌计划。`,type:'play'},
+    {t:'飞牌基础',c:`<h4>✨ 飞牌</h4><div class="formula">飞牌 = 利用位置优势争取额外赢墩</div><div class="box">AQ对K，如果K在左边可以飞成功</div>`,type:'play'},
+    {t:'单飞与双飞',c:`<h4>🎴 飞牌技巧</h4>单飞：AQ飞K<br>双飞：AQJ飞KT`,type:'play'},
+    {t:'飞牌练习1',c:`<h4>📝 练习</h4>`,type:'play'},
+    {t:'飞牌练习2',c:`<h4>📝 练习</h4>`,type:'play'},
+    {t:'第1周测验',c:`<h4>🏆 测验</h4>`,type:'play',test:true},
+
+    {t:'建立长套',c:`<h4>🔧 建立长套</h4>通过清除大牌，让小牌成为赢墩。`,type:'play'},
+    {t:'长套建立练习',c:`<h4>📝 练习</h4>`,type:'play'},
+    {t:'将吃基础',c:`<h4>🗡️ 将吃</h4>用将牌吃掉输墩。`,type:'play'},
+    {t:'交叉将吃',c:`<h4>✂️ 交叉将吃</h4>在两手之间反复将吃。`,type:'play'},
+    {t:'将吃练习',c:`<h4>📝 练习</h4>`,type:'play'},
+    {t:'通信管理',c:`<h4>🔗 通信</h4>保持两手之间的联络。`,type:'play'},
+    {t:'第2周测验',c:`<h4>🏆 测验</h4>`,type:'play',test:true},
+
+    {t:'安全打法',c:`<h4>🛡️ 安全打法</h4>保证完成定约的打法。`,type:'play'},
+    {t:'投入打法',c:`<h4>🎯 投入</h4>迫使对手打出有利的牌。`,type:'play'},
+    {t:'消除打法',c:`<h4>🧹 消除</h4>消除对手的安全出路。`,type:'play'},
+    {t:'端打',c:`<h4>⚡ 端打</h4>利用位置攻击对手的大牌。`,type:'play'},
+    {t:'做庄练习1',c:`<h4>📝 练习</h4>`,type:'play'},
+    {t:'做庄练习2',c:`<h4>📝 练习</h4>`,type:'play'},
+    {t:'第3周测验',c:`<h4>🏆 测验</h4>`,type:'play',test:true},
+
+    {t:'挤牌入门',c:`<h4>💥 挤牌</h4>迫使对手放弃保护。<div class="tip">挤牌是高级技巧，需要大量练习！</div>`,type:'play'},
+    {t:'简单挤牌',c:`<h4>📐 简单挤牌</h4>`,type:'play'},
+    {t:'双挤',c:`<h4>🔄 双挤</h4>`,type:'play'},
+    {t:'挤牌练习',c:`<h4>📝 练习</h4>`,type:'play'},
+    {t:'做庄综合1',c:`<h4>🎮 综合</h4>`,type:'play'},
+    {t:'做庄综合2',c:`<h4>🎮 综合</h4>`,type:'play'},
+    {t:'第4周测验',c:`<h4>🏆 测验</h4>`,type:'play',test:true},
+];
+while(playLessons.length<35) {
+    if(playLessons.length===34) playLessons.push({t:'阶段7结业',c:`<h4>🎓 结业</h4>`,type:'play',test:true,final:true});
+    else playLessons.push({t:`做庄复习${playLessons.length-27}`,c:`<h4>📖 复习</h4>`,type:'play'});
+}
+
+// 阶段8: 防守 (28天)
+const defLessons = [
+    {t:'防守概述',c:`<h4>🛡️ 防守基础</h4>防守的目标是击败定约。`,type:'def'},
+    {t:'首攻选择-NT',c:`<h4>🎯 对NT首攻</h4><div class="box">攻自己最长的花色<br>攻搭档叫过的花色<br>首攻第四大</div>`,type:'def'},
+    {t:'首攻选择-有将',c:`<h4>🗡️ 对有将首攻</h4><div class="box">单张攻击<br>AK套攻A<br>将牌首攻</div>`,type:'def'},
+    {t:'首攻练习',c:`<h4>📝 练习</h4>`,type:'def'},
+    {t:'态度信号',c:`<h4>📡 态度信号</h4>高牌=鼓励，低牌=不鼓励`,type:'def'},
+    {t:'计数信号',c:`<h4>🔢 计数信号</h4>高低=偶数张，低高=奇数张`,type:'def'},
+    {t:'第1周测验',c:`<h4>🏆 测验</h4>`,type:'def',test:true},
+
+    {t:'花色优先信号',c:`<h4>🎨 花色信号</h4>`,type:'def'},
+    {t:'第三手打牌',c:`<h4>3️⃣ 第三手</h4>第三手高打`,type:'def'},
+    {t:'阻塞与通信',c:`<h4>🚧 阻塞</h4>`,type:'def'},
+    {t:'防守计划',c:`<h4>📋 计划</h4>`,type:'def'},
+    {t:'防守配合',c:`<h4>🤝 配合</h4>`,type:'def'},
+    {t:'防守练习1',c:`<h4>📝 练习</h4>`,type:'def'},
+    {t:'第2周测验',c:`<h4>🏆 测验</h4>`,type:'def',test:true},
+];
+while(defLessons.length<28) {
+    if(defLessons.length===27) defLessons.push({t:'阶段8结业',c:`<h4>🎓 结业</h4>`,type:'def',test:true,final:true});
+    else defLessons.push({t:`防守练习${defLessons.length-13}`,c:`<h4>📝 练习</h4>`,type:'def'});
+}
+
+// 阶段9: 综合实战 (11天)
+const finalLessons = [
+    {t:'综合复习1',c:`<h4>📚 叫牌复习</h4>`,type:'mixed'},
+    {t:'综合复习2',c:`<h4>📚 做庄复习</h4>`,type:'mixed'},
+    {t:'综合复习3',c:`<h4>📚 防守复习</h4>`,type:'mixed'},
+    {t:'模拟比赛1',c:`<h4>🎮 模拟</h4>`,type:'mixed'},
+    {t:'模拟比赛2',c:`<h4>🎮 模拟</h4>`,type:'mixed'},
+    {t:'比赛礼仪',c:`<h4>🎩 礼仪</h4>比赛中的规则和礼仪`,type:'mixed'},
+    {t:'心理素质',c:`<h4>🧠 心理</h4>比赛中的心理调节`,type:'mixed'},
+    {t:'时间管理',c:`<h4>⏰ 时间</h4>`,type:'mixed'},
+    {t:'最终复习1',c:`<h4>📖 复习</h4>`,type:'mixed'},
+    {t:'最终复习2',c:`<h4>📖 复习</h4>`,type:'mixed'},
+    {t:'结业大考',c:`<h4>🏆 结业大考</h4><div class="tip">恭喜你完成200天训练！<br>你已经准备好参加比赛了！</div>`,type:'mixed',test:true,final:true},
+];
+
+// 合并所有课程
+[bidLessons,respLessons,compLessons,rebidLessons,slamLessons,advLessons,playLessons,defLessons,finalLessons].forEach((arr,pi) => {
+    arr.forEach(l => {
+        LESSONS.push({...l, phase:pi+1, day:dayCounter++});
+    });
+});
+
+// ============ 状态 ============
+const R = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+const S = ['spades','hearts','diamonds','clubs'];
+const HV = {A:4,K:3,Q:2,J:1};
+
+let prog = JSON.parse(localStorage.getItem('bc200'))||{done:[],cur:1,stars:0};
+let selPhase=1, selWeek=1, selDay=1;
+let qz = {day:1,cur:0,tot:10,ok:0,ans:false};
+let freeBid = {mode:'open',ok:0,tot:0};
+let hand, answer, ctx={};
+
+// ============ 工具 ============
+const shuf = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const deal = () => { const d=[]; S.forEach(s=>R.forEach(r=>d.push({s,r}))); shuf(d); const h={spades:[],hearts:[],diamonds:[],clubs:[]}; for(let i=0;i<13;i++)h[d[i].s].push(d[i].r); S.forEach(s=>h[s].sort((a,b)=>R.indexOf(a)-R.indexOf(b))); return h; };
+const hcp = h => S.reduce((t,s)=>t+h[s].reduce((a,r)=>a+(HV[r]||0),0),0);
+const shape = h => S.map(s=>h[s].length).sort((a,b)=>b-a).join('-');
+const lens = h => ({s:h.spades.length,h:h.hearts.length,d:h.diamonds.length,c:h.clubs.length});
+const bal = sh => ['4-3-3-3','4-4-3-2','5-3-3-2'].includes(sh);
+const g6 = (h,su) => h[su].length===6 && h[su].filter(r=>['A','K','Q','J'].includes(r)).length>=2;
+
+// ============ 叫牌判断 ============
+function judgeOpen(h) {
+    const p=hcp(h), sh=shape(h), l=lens(h), b=bal(sh);
+    // 检查7张套和8张套（用于阻击开叫）
+    const has7 = (suit) => h[suit].length >= 7;
+    const has8 = (suit) => h[suit].length >= 8;
+
+    // 4阶阻击开叫（8张套，非常弱）
+    if(p>=3&&p<=10) {
+        if(has8('spades'))return{bid:'4♠',exp:`【4阶阻击】${p}点+${l.s}张♠！8张以上长套可以直接开叫4阶，极大压缩对手叫牌空间`};
+        if(has8('hearts'))return{bid:'4♥',exp:`【4阶阻击】${p}点+${l.h}张♥！8张以上长套直接开4阶阻击`};
+    }
+
+    // 3阶阻击开叫（7张套，5-10点）
+    if(p>=5&&p<=10) {
+        if(has7('spades')&&l.h<4)return{bid:'3♠',exp:`【3阶阻击】${p}点+${l.s}张♠！7张套开叫3阶，比弱二更有阻击性。阻击叫的目的是干扰对手叫牌`};
+        if(has7('hearts')&&l.s<4)return{bid:'3♥',exp:`【3阶阻击】${p}点+${l.h}张♥！7张套开叫3阶阻击`};
+        if(has7('diamonds'))return{bid:'3♦',exp:`【3阶阻击】${p}点+${l.d}张♦！7张♦套开叫3♦阻击`};
+        if(has7('clubs'))return{bid:'3♣',exp:`【3阶阻击】${p}点+${l.c}张♣！7张♣套开叫3♣阻击`};
+    }
+
+    // 弱二开叫（6张套，5-10点）
+    if(p>=5&&p<=10) {
+        if(g6(h,'spades')&&l.h<4)return{bid:'2♠',exp:`【弱二开叫】${p}点+6张♠，点力不够1阶开叫(12+)，但有好的6张套可以阻击性开叫2♠`};
+        if(g6(h,'hearts')&&l.s<4)return{bid:'2♥',exp:`【弱二开叫】${p}点+6张♥，点力不够1阶开叫(12+)，但有好的6张套可以阻击性开叫2♥`};
+        if(g6(h,'diamonds'))return{bid:'2♦',exp:`【弱二开叫】${p}点+6张♦，点力不够1阶开叫(12+)，但有好的6张套可以阻击性开叫2♦`};
+    }
+
+    // 点力不够
+    if(p<12)return{bid:'Pass',exp:`【不开叫】只有${p}点，开叫需要12+点。牌力不足时Pass，等待同伴开叫或对手开叫后再行动`};
+
+    // 强牌
+    if(p>=22)return{bid:'2♣',exp:`【技术性强开叫】${p}点是超强牌！2♣是人为强开叫，表示22+点，要求同伴必须应叫，不能Pass`};
+    if(p>=25&&b)return{bid:'3NT',exp:`【赌博3NT】${p}点超强均型！可以直接开叫3NT，告诉同伴你有足够的实力`};
+    if(p>=20&&p<=21&&b)return{bid:'2NT',exp:`【强均型】${p}点均型(4333/4432/5332)，开叫2NT表示20-21点均型牌，比1NT更强`};
+
+    // 1NT
+    if(p>=15&&p<=17&&b)return{bid:'1NT',exp:`【均型开叫】${p}点均型(4333/4432/5332)，开叫1NT表示15-17点均型牌，是非常精确的叫品`};
+
+    // 5-5双高花
+    if(l.s>=5&&l.h>=5)return{bid:'1♠',exp:`【双高花5-5】${p}点有${l.s}张♠和${l.h}张♥，两套5张以上时先叫高级花色(♠)！再叫时叫♥可以经济地显示两套。如果先叫1♥再叫2♠，同伴回♥需要到3阶，不经济`};
+
+    // 单独5张高花
+    if(l.s>=5&&l.s>l.h)return{bid:'1♠',exp:`【5张高花】${p}点有${l.s}张♠，5张以上高花优先开叫。高花做将牌只需4-4配合就很好`};
+    if(l.h>=5)return{bid:'1♥',exp:`【5张高花】${p}点有${l.h}张♥，5张以上高花优先开叫。高花做将牌只需4-4配合就很好`};
+
+    // 4张套处理
+    if(l.d>=4&&l.c>=4)return{bid:'1♦',exp:`【双低花4-4】${p}点有4张♦和4张♣，两门低花都是4张时开叫1♦！这样同伴应叫2♣时你可以Pass或加叫`};
+    if(l.d>=4)return{bid:'1♦',exp:`【4张低花】${p}点有${l.d}张♦，没有5张高花时叫最长的低花`};
+    return{bid:'1♣',exp:`【开叫1♣】${p}点，没有5张高花也没有4张♦，开叫1♣作为等待性叫品。1♣可能只有3张甚至2张`};
+}
+
+function judgeResp(h,pb) {
+    const p=hcp(h), l=lens(h), b=bal(shape(h));
+    if(pb==='1♥') {
+        if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点，应叫需要6+点。同伴开叫1♥表示12-21点5+张♥，你的点数太少无法有效应叫`};
+        if(l.s>=4)return{bid:'1♠',exp:`【新花色优先】${p}点有${l.s}张♠。应叫1阶新花色只需6+点，先报告4张♠寻找可能的4-4♠配合，优先于支持♥`};
+        if(l.h>=4&&p>=13)return{bid:'4♥',exp:`【直接进局】${p}点+${l.h}张♥支持！13+点加同伴12+点至少25点，有8+张♥配合，直接跳叫4♥进局`};
+        if(l.h>=4&&p>=10)return{bid:'3♥',exp:`【邀请进局】${p}点+${l.h}张♥支持。10-12点是邀请区间，3♥告诉同伴"我有好支持，如果你是高限请上4♥"`};
+        if(l.h>=3)return{bid:'2♥',exp:`【简单加叫】${p}点+${l.h}张♥支持。6-9点简单加叫2♥，表示有3+张支持但点力有限`};
+        return{bid:'1NT',exp:`【无配合应叫】${p}点但只有${l.h}张♥。1NT是等待叫，表示6-9点没有4张♠也没有3张♥支持`};
+    }
+    if(pb==='1♠') {
+        if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点，应叫需要6+点`};
+        if(l.s>=4&&p>=13)return{bid:'4♠',exp:`【直接进局】${p}点+${l.s}张♠！13+点够局，有4张♠配合直接叫4♠`};
+        if(l.s>=4&&p>=10)return{bid:'3♠',exp:`【邀请进局】${p}点+${l.s}张♠支持。10-12点邀请，让同伴决定`};
+        if(l.s>=3)return{bid:'2♠',exp:`【简单加叫】${p}点+${l.s}张♠支持。6-9点加叫2♠表示有支持但点力有限`};
+        return{bid:'1NT',exp:`【无配合应叫】${p}点但只有${l.s}张♠不够支持，叫1NT等同伴再叫`};
+    }
+    if(pb==='1♣'||pb==='1♦') {
+        if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点不够应叫。低花开叫后应叫也需6+点`};
+        if(l.h>=4&&l.h>=l.s)return{bid:'1♥',exp:`【报告高花】${p}点有${l.h}张♥。优先在1阶报告4张高花！高花局只需10墩(4♥/4♠)，低花局需11墩(5♣/5♦)`};
+        if(l.s>=4)return{bid:'1♠',exp:`【报告高花】${p}点有${l.s}张♠。1阶报告♠寻找高花配合`};
+        if(pb==='1♣'&&l.d>=4)return{bid:'1♦',exp:`【报告♦】${p}点有${l.d}张♦，叫1♦显示4+张♦`};
+        return{bid:'1NT',exp:`【无高花】${p}点但没有4张高花，1NT表示6-9点均型无4张高花`};
+    }
+    if(pb==='1NT') {
+        if(l.h>=5)return{bid:'2♦',exp:`【Jacoby转移叫】有${l.h}张♥！叫2♦命令同伴叫2♥。转移叫让强手(1NT开叫方)坐庄，保护大牌`};
+        if(l.s>=5)return{bid:'2♥',exp:`【Jacoby转移叫】有${l.s}张♠！叫2♥命令同伴叫2♠。转移叫让强手坐庄`};
+        if((l.h>=4||l.s>=4)&&p>=8)return{bid:'2♣',exp:`【Stayman问叫】${p}点有4张高花，2♣询问同伴有无4张高花。同伴答2♦=没有，2♥=有♥，2♠=有♠`};
+        if(p>=10)return{bid:'3NT',exp:`【直接进局】${p}点+同伴15-17点≥25点，够3NT。没有5张高花直接叫3NT`};
+        if(p>=8)return{bid:'2NT',exp:`【邀请进局】${p}点(8-9点)邀请。同伴高限(17点)上3NT，低限Pass`};
+        return{bid:'Pass',exp:`【点力不足】${p}点太弱，同伴15-17点+你的${p}点不够进局，Pass停在1NT`};
+    }
+    return{bid:'Pass',exp:'Pass'};
+}
+
+function judgeComp(h,pb,ob) {
+    const p=hcp(h), l=lens(h);
+    if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点。竞争叫牌中也需要6+点才能行动，否则容易被加倍惩罚`};
+    if(pb==='1♥'&&l.s===4&&!ob.includes('♠'))return{bid:'X',exp:`【负加倍】${p}点有4张♠！同伴开1♥后敌方争叫，你的加倍(X)是"负加倍"，表示有4张♠但点力不够直接叫♠。不是惩罚性的！`};
+    if(pb==='1♠'&&l.h===4)return{bid:'X',exp:`【负加倍】${p}点有4张♥！同伴开1♠后敌方争叫，负加倍表示有4张♥。这让同伴知道你的牌型`};
+    if((pb==='1♣'||pb==='1♦')&&(l.h>=4||l.s>=4))return{bid:'X',exp:`【负加倍】${p}点有4张高花！同伴开低花后敌方争叫，负加倍表示你有4张高花，询问同伴是否有高花配合`};
+    if(pb.includes('♥')&&l.h>=3)return{bid:'2♥',exp:`【竞争支持】${p}点+${l.h}张♥支持。在竞争中用简单加叫支持同伴，抢占叫牌空间`};
+    if(pb.includes('♠')&&l.s>=3)return{bid:'2♠',exp:`【竞争支持】${p}点+${l.s}张♠支持。竞争中加叫支持同伴的花色`};
+    return{bid:'Pass',exp:`【暂时Pass】${p}点但没有好的叫品。在竞争中没有配合也没有好套时先Pass，等待机会`};
+}
+
+// ============ UI ============
+function showPage(p) {
+    document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('page-'+p).classList.add('active');
+    event.target.classList.add('active');
+    if(p==='bid')newFreeBid();
+    if(p==='play')newPlayQ();
+    if(p==='defend')newDefQ();
+}
+
+function updateUI() {
+    // 统计
+    document.getElementById('stat-days').textContent = prog.done.length;
+    document.getElementById('stat-stars').textContent = prog.stars;
+    document.getElementById('stat-pct').textContent = Math.round(prog.done.length/200*100)+'%';
+    document.getElementById('main-bar').style.width = (prog.done.length/200*100)+'%';
+
+    // 阶段卡片
+    const pg = document.getElementById('phase-grid');
+    let start = 1;
+    pg.innerHTML = PHASES.map(ph => {
+        const days = LESSONS.filter(l=>l.phase===ph.id);
+        const done = days.filter(d=>prog.done.includes(d.day)).length;
+        const unlocked = start <= prog.cur;
+        const pct = Math.round(done/days.length*100);
+        start += ph.days;
+        let cls = 'phase-card';
+        if(ph.id===selPhase) cls += ' active';
+        if(!unlocked) cls += ' locked';
+        return `<div class="${cls}" onclick="${unlocked?`selPh(${ph.id})`:''}"><div class="icon">${ph.icon}</div><div class="name">${ph.name}</div><div class="info">${done}/${days.length}天</div><div class="progress-mini"><div class="progress-mini-fill" style="width:${pct}%"></div></div></div>`;
+    }).join('');
+
+    // 周导航
+    const pDays = LESSONS.filter(l=>l.phase===selPhase);
+    const weeks = Math.ceil(pDays.length/7);
+    const wr = document.getElementById('week-row');
+    wr.innerHTML = '';
+    for(let w=1;w<=weeks;w++) {
+        const wDays = pDays.slice((w-1)*7,w*7);
+        const done = wDays.every(d=>prog.done.includes(d.day));
+        const unlocked = wDays[0] && wDays[0].day <= prog.cur;
+        let cls = 'week-btn';
+        if(w===selWeek) cls += ' active';
+        if(done) cls += ' done';
+        else if(unlocked) cls += ' unlocked';
+        wr.innerHTML += `<button class="${cls}" onclick="selWk(${w})">第${w}周</button>`;
+    }
+
+    // 天数
+    const wDays = pDays.slice((selWeek-1)*7,selWeek*7);
+    const dr = document.getElementById('day-row');
+    dr.innerHTML = wDays.map(d => {
+        const done = prog.done.includes(d.day);
+        const cur = d.day === prog.cur && !done;
+        const unlocked = d.day <= prog.cur;
+        let cls = 'day-btn';
+        if(unlocked) cls += ' unlocked';
+        if(done) cls += ' done';
+        if(cur) cls += ' current';
+        const ico = done ? '⭐' : (cur ? '📖' : (unlocked ? '✨' : '🔒'));
+        return `<div class="${cls}" onclick="${unlocked?`selDy(${d.day})`:''}"><div>${d.day}</div><div class="ico">${ico}</div></div>`;
+    }).join('');
+
+    selDy(selDay);
+}
+
+function selPh(p) { selPhase=p; selWeek=1; const first=LESSONS.find(l=>l.phase===p); selDay=first?first.day:1; updateUI(); }
+function selWk(w) { selWeek=w; const pDays=LESSONS.filter(l=>l.phase===selPhase); const wDays=pDays.slice((w-1)*7,w*7); if(wDays.length)selDay=wDays[0].day; updateUI(); }
+
+function selDy(d) {
+    selDay = d;
+    const les = LESSONS[d-1];
+    if(!les) return;
+    document.getElementById('l-phase').textContent = PHASES[les.phase-1].name;
+    document.getElementById('l-title').textContent = `第${d}天：${les.t}`;
+    document.getElementById('l-body').innerHTML = les.c;
+
+    const badge = document.getElementById('l-badge');
+    const btn = document.getElementById('start-btn');
+    const done = prog.done.includes(d);
+    const unlocked = d <= prog.cur;
+
+    if(done) { badge.textContent='已完成⭐'; badge.className='lesson-badge done'; btn.textContent='再练一次'; btn.disabled=false; }
+    else if(unlocked) { badge.textContent='今日'; badge.className='lesson-badge new'; btn.textContent=les.test?'开始测验🎯':'开始训练💪'; btn.disabled=false; }
+    else { badge.textContent='🔒'; badge.className='lesson-badge'; btn.textContent='未解锁'; btn.disabled=true; }
+    qz.day = d;
+}
+
+function startQuiz() {
+    const les = LESSONS[selDay-1];
+    qz = {day:selDay, cur:1, tot:les.test?12:10, ok:0, ans:false};
+    document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+    document.getElementById('page-quiz').classList.add('active');
+    document.getElementById('qz-day').textContent = qz.day;
+    document.getElementById('qz-tot').textContent = qz.tot;
+    updQz();
+    genQ();
+}
+
+function updQz() {
+    document.getElementById('qz-cur').textContent = qz.cur;
+    document.getElementById('qz-ok').textContent = qz.ok;
+}
+
+function genQ() {
+    qz.ans = false;
+    document.getElementById('qz-res').className = 'result-box';
+    document.getElementById('qz-next').style.display = 'none';
+
+    const les = LESSONS[qz.day-1];
+    let type = les.type;
+    if(type==='mixed'||type==='adv'||type==='slam'||type==='rebid'||type==='play'||type==='def') type = ['open','resp','comp'][Math.floor(Math.random()*3)];
+
+    hand = deal();
+    const seq = document.getElementById('qz-seq');
+
+    if(type==='open') {
+        seq.classList.remove('show');
+        document.getElementById('qz-label').textContent = '你的手牌';
+        answer = judgeOpen(hand);
+        renderBids('qz-bids', ['Pass','1♣','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT']);
+    } else if(type==='resp') {
+        seq.classList.add('show');
+        const pbs = les.pb || ['1♣','1♦','1♥','1♠','1NT'];
+        const pb = pbs[Math.floor(Math.random()*pbs.length)];
+        ctx = {pb};
+        document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        document.getElementById('qz-label').textContent = '你的手牌';
+        answer = judgeResp(hand, pb);
+        renderBids('qz-bids', ['Pass','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT','5♣','5♦','6NT']);
+    } else {
+        seq.classList.add('show');
+        const pbs = ['1♣','1♦','1♥','1♠'];
+        const pb = pbs[Math.floor(Math.random()*4)];
+        let obs = ['2♣','2♦'];
+        if(pb==='1♠')obs=['2♣','2♦','2♥'];
+        if(pb==='1♣')obs=['1♦','1♥','1♠'];
+        if(pb==='1♦')obs=['1♥','1♠','2♣'];
+        if(pb==='1♥')obs=['1♠','2♣','2♦'];
+        const ob = obs[Math.floor(Math.random()*obs.length)];
+        ctx = {pb,ob};
+        document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
+        document.getElementById('qz-label').textContent = '你的手牌';
+        answer = judgeComp(hand,pb,ob);
+        renderBids('qz-bids', ['Pass','X','XX','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+    }
+
+    dispHand('qz', hand);
+}
+
+function dispHand(pre, h) {
+    document.getElementById(pre+'-s').textContent = h.spades.join(' ')||'-';
+    document.getElementById(pre+'-h').textContent = h.hearts.join(' ')||'-';
+    document.getElementById(pre+'-d').textContent = h.diamonds.join(' ')||'-';
+    document.getElementById(pre+'-c').textContent = h.clubs.join(' ')||'-';
+    document.getElementById(pre+'-hcp').textContent = hcp(h);
+    document.getElementById(pre+'-shape').textContent = shape(h);
+}
+
+function renderBids(id, bids) {
+    document.getElementById(id).innerHTML = bids.map(b => {
+        let cls = 'bid';
+        if(b==='Pass') cls += ' pass';
+        if(b==='X') cls += ' x';
+        if(b==='XX') cls += ' xx';
+        return `<button class="${cls}" onclick="pick${id==='qz-bids'?'Q':'F'}('${b}')">${b}</button>`;
+    }).join('');
+}
+
+function pickQ(b) {
+    if(qz.ans) return;
+    qz.ans = true;
+    document.querySelectorAll('#qz-bids .bid').forEach(e => { e.classList.remove('sel'); if(e.textContent===b)e.classList.add('sel'); });
+
+    const ok = b === answer.bid;
+    if(ok) qz.ok++;
+
+    // 音效和动画
+    playSound(ok ? 'correct' : 'wrong');
+    updateStreak(ok);
+    if(ok && streak.count >= 2) spawnConfetti(streak.count * 5);
+
+    const res = document.getElementById('qz-res');
+    res.className = 'result-box ' + (ok?'correct':'wrong');
+    const cheer = getCheer(ok);
+    document.getElementById('qz-res-t').innerHTML = (ok ? '✓ ' : '✗ ') + cheer + getStreakHTML();
+    document.getElementById('qz-res-p').innerHTML = (ok?'':(`正确答案：<b>${answer.bid}</b><br>`)) + answer.exp;
+
+    updQz();
+    document.getElementById('qz-next').style.display = 'block';
+    document.getElementById('qz-next').textContent = qz.cur >= qz.tot ? '查看结果' : '下一题';
+}
+
+function nextQ() {
+    if(qz.cur >= qz.tot) { finishQ(); return; }
+    qz.cur++;
+    updQz();
+    genQ();
+}
+
+function finishQ() {
+    const pct = Math.round(qz.ok/qz.tot*100);
+    const les = LESSONS[qz.day-1];
+    const pass = pct >= (les.final ? 90 : (les.test ? 80 : 60));
+
+    if(pass) {
+        if(!prog.done.includes(qz.day)) {
+            prog.done.push(qz.day);
+            prog.stars += pct===100 ? 3 : (pct>=80 ? 2 : 1);
+        }
+        if(qz.day === prog.cur && prog.cur < 200) prog.cur++;
+        save();
+
+        // 庆祝效果！
+        playSound('levelup');
+        spawnConfetti(pct === 100 ? 80 : 50);
+        if(pct === 100) {
+            setTimeout(() => showMascot('🌟', '满分通过！', '你太厉害了！'), 500);
+        } else if(prog.done.length % 7 === 0) {
+            setTimeout(() => showMascot('📅', `完成第${Math.floor(prog.done.length/7)}周！`, '坚持就是胜利！'), 500);
+        }
+    } else {
+        playSound('wrong');
+    }
+
+    document.getElementById('m-icon').textContent = pass ? (pct===100?'🌟':'🏆') : '💪';
+    document.getElementById('m-title').textContent = pass ? (pct===100?'完美!':'通过!') : '继续加油!';
+    document.getElementById('m-title').className = 'modal-title ' + (pass?'ok':'fail');
+    document.getElementById('m-text').innerHTML = `正确率：${pct}%<br>${qz.ok}/${qz.tot}题` + (pass ? (pct===100?'<br>+3⭐':pct>=80?'<br>+2⭐':'<br>+1⭐') : `<br>需要${les.final?90:les.test?80:60}%通过`);
+    document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('show');
+    document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+    document.getElementById('page-plan').classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.nav-btn')[0].classList.add('active');
+    updateUI();
+}
+
+function exitQuiz() { if(confirm('退出?')) closeModal(); }
+function resetAll() { if(confirm('重置所有进度?')) { prog={done:[],cur:1,stars:0}; save(); selPhase=1;selWeek=1;selDay=1; updateUI(); } }
+function save() { localStorage.setItem('bc200', JSON.stringify(prog)); }
+
+// ============ 自由叫牌 ============
+function setBidMode(m) {
+    freeBid.mode = m;
+    document.querySelectorAll('#page-bid .week-btn').forEach(b => {
+        b.classList.remove('active');
+        if((m==='open'&&b.textContent==='开叫')||(m==='resp'&&b.textContent==='应叫')||(m==='comp'&&b.textContent==='竞叫')||(m==='rebid'&&b.textContent==='再叫')||(m==='slam'&&b.textContent==='满贯')) b.classList.add('active');
+    });
+    newFreeBid();
+}
+
+function newFreeBid() {
+    hand = deal();
+    document.getElementById('fb-res').className = 'result-box';
+    const seq = document.getElementById('fb-seq');
+
+    if(freeBid.mode==='open'||freeBid.mode==='rebid'||freeBid.mode==='slam') {
+        seq.classList.remove('show');
+        document.getElementById('fb-label').textContent = '你的手牌';
+        answer = judgeOpen(hand);
+        renderBids('fb-bids', ['Pass','1♣','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT']);
+    } else if(freeBid.mode==='resp') {
+        seq.classList.add('show');
+        const pb = ['1♣','1♦','1♥','1♠','1NT'][Math.floor(Math.random()*5)];
+        ctx = {pb};
+        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        document.getElementById('fb-label').textContent = '你的手牌';
+        answer = judgeResp(hand,pb);
+        renderBids('fb-bids', ['Pass','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT','5♣','5♦','6NT']);
+    } else {
+        seq.classList.add('show');
+        const pb = ['1♣','1♦','1♥','1♠'][Math.floor(Math.random()*4)];
+        let obs = ['2♣','2♦'];
+        if(pb==='1♠')obs=['2♣','2♦','2♥'];
+        if(pb==='1♣')obs=['1♦','1♥','1♠'];
+        if(pb==='1♦')obs=['1♥','1♠','2♣'];
+        if(pb==='1♥')obs=['1♠','2♣','2♦'];
+        const ob = obs[Math.floor(Math.random()*obs.length)];
+        ctx = {pb,ob};
+        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
+        document.getElementById('fb-label').textContent = '你的手牌';
+        answer = judgeComp(hand,pb,ob);
+        renderBids('fb-bids', ['Pass','X','XX','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+    }
+
+    dispHand('fb', hand);
+}
+
+function pickF(b) {
+    freeBid.tot++;
+    document.querySelectorAll('#fb-bids .bid').forEach(e => { e.classList.remove('sel'); if(e.textContent===b)e.classList.add('sel'); });
+
+    const ok = b === answer.bid;
+    if(ok) freeBid.ok++;
+
+    // 音效和动画
+    playSound(ok ? 'correct' : 'wrong');
+    updateStreak(ok);
+    if(ok && streak.count >= 2) spawnConfetti(streak.count * 5);
+
+    document.getElementById('fb-ok').textContent = freeBid.ok;
+    document.getElementById('fb-tot').textContent = freeBid.tot;
+
+    const res = document.getElementById('fb-res');
+    res.className = 'result-box ' + (ok?'correct':'wrong');
+    const cheer = getCheer(ok);
+    document.getElementById('fb-res-t').innerHTML = (ok ? '✓ ' : '✗ ') + cheer + getStreakHTML();
+    document.getElementById('fb-res-p').innerHTML = (ok?'':(`正确：<b>${answer.bid}</b><br>`)) + answer.exp;
+}
+
+// ============ 做庄练习 ============
+let playMode = 'finesse';
+const PLAY_QS = {
+    finesse: [
+        {q:'AQ在手，K在左边对手，如何打？', opts:['先打A','小牌飞Q','打Q'], ans:1, exp:'小牌飞Q，如果K在左边可以赢两墩'},
+        {q:'AQJ在手，如何最大化赢墩？', opts:['打A','反复飞牌','直接打QJ'], ans:1, exp:'反复飞牌，可能赢3墩'},
+        {q:'KQ在手对A，什么时候打？', opts:['立即打','等对手打A','投出这门'], ans:1, exp:'等对手打A，之后KQ都是赢墩'},
+    ],
+    establish: [
+        {q:'你有AKxxx对xxx，如何建立长套？', opts:['打AK后放小','先打小牌','只打AK'], ans:0, exp:'打AK清大牌，放小建立长套'},
+        {q:'长套建立需要几次进手？', opts:['不需要','可能需要多次','只需一次'], ans:1, exp:'可能需要多次进手来建立和兑现'},
+    ],
+    ruff: [
+        {q:'明手有单张，如何利用？', opts:['将吃','垫牌','忽略'], ans:0, exp:'用明手的将牌将吃'},
+        {q:'交叉将吃的条件？', opts:['双方都有短套','只需一方短套','不需要条件'], ans:0, exp:'双方都有不同花色的短套'},
+    ],
+    squeeze: [
+        {q:'挤牌的基本条件？', opts:['有足够赢墩','差一墩','差很多墩'], ans:1, exp:'通常在差一墩时使用挤牌'},
+        {q:'被挤的人会怎样？', opts:['被迫放弃保护','可以安全垫牌','没有影响'], ans:0, exp:'被迫在两门牌中放弃一门的保护'},
+    ]
+};
+
+function setPlayMode(m) {
+    playMode = m;
+    document.querySelectorAll('#page-play .week-btn').forEach(b => {
+        b.classList.remove('active');
+        if((m==='finesse'&&b.textContent==='飞牌')||(m==='establish'&&b.textContent==='建立长套')||(m==='ruff'&&b.textContent==='将吃')||(m==='squeeze'&&b.textContent==='挤牌')) b.classList.add('active');
+    });
+    newPlayQ();
+}
+
+function newPlayQ() {
+    const qs = PLAY_QS[playMode] || PLAY_QS.finesse;
+    const q = qs[Math.floor(Math.random()*qs.length)];
+
+    document.getElementById('play-contract').textContent = '定约: 4♠ 南庄家';
+    document.getElementById('play-n').innerHTML = '♠ K Q x x<br>♥ x x x<br>♦ A x x<br>♣ x x x';
+    document.getElementById('play-w').innerHTML = '(暗)';
+    document.getElementById('play-e').innerHTML = '(暗)';
+    document.getElementById('play-s').innerHTML = '♠ A J x x x<br>♥ A K<br>♦ K x x<br>♣ A x x';
+    document.getElementById('play-need').textContent = '10';
+
+    document.getElementById('play-lesson').innerHTML = `<h4>❓ ${q.q}</h4>`;
+    document.getElementById('play-opts').innerHTML = q.opts.map((o,i) => `<button class="play-btn" onclick="pickPlay(${i},${q.ans},'${q.exp}')">${o}</button>`).join('');
+    document.getElementById('play-res').className = 'result-box';
+}
+
+function pickPlay(i, ans, exp) {
+    document.querySelectorAll('#play-opts .play-btn').forEach((b,j) => { b.classList.remove('sel'); if(j===i)b.classList.add('sel'); });
+    const ok = i === ans;
+
+    // 音效和动画
+    playSound(ok ? 'correct' : 'wrong');
+    updateStreak(ok);
+    if(ok && streak.count >= 2) spawnConfetti(streak.count * 5);
+
+    const res = document.getElementById('play-res');
+    res.className = 'result-box ' + (ok?'correct':'wrong');
+    const cheer = getCheer(ok);
+    document.getElementById('play-res-t').innerHTML = (ok ? '✓ ' : '✗ ') + cheer + getStreakHTML();
+    document.getElementById('play-res-p').textContent = exp;
+}
+
+// ============ 防守练习 ============
+let defMode = 'lead';
+const DEF_QS = {
+    lead: [
+        {q:'对3NT，你有KQJxx，首攻什么？', opts:['K','小牌','Q'], ans:0, exp:'首攻K，从连张顶张攻'},
+        {q:'对4♠，你有单张♦，首攻什么？', opts:['单张♦','其他花色','将牌'], ans:0, exp:'首攻单张寻求将吃'},
+        {q:'搭档叫过♥，首攻什么？', opts:['♥','自己的长套','将牌'], ans:0, exp:'首攻搭档叫过的花色'},
+    ],
+    signal: [
+        {q:'搭档首攻A，你有Kxx，打什么？', opts:['K(鼓励)','x(不鼓励)','中间牌'], ans:0, exp:'打K鼓励继续'},
+        {q:'计数信号中，打高再低表示？', opts:['偶数张','奇数张','有大牌'], ans:0, exp:'高低=偶数张'},
+    ],
+    plan: [
+        {q:'庄家有AKQ，你的策略？', opts:['等待其他花色','直接攻击','放弃'], ans:0, exp:'这门无法击败，寻找其他进攻路线'},
+    ]
+};
+
+function setDefMode(m) {
+    defMode = m;
+    document.querySelectorAll('#page-defend .week-btn').forEach(b => {
+        b.classList.remove('active');
+        if((m==='lead'&&b.textContent==='首攻')||(m==='signal'&&b.textContent==='信号')||(m==='plan'&&b.textContent==='防守计划')) b.classList.add('active');
+    });
+    newDefQ();
+}
+
+function newDefQ() {
+    const qs = DEF_QS[defMode] || DEF_QS.lead;
+    const q = qs[Math.floor(Math.random()*qs.length)];
+
+    document.getElementById('def-contract').textContent = '定约: 3NT 南庄家';
+    document.getElementById('def-n').innerHTML = '♠ x x x<br>♥ K Q J<br>♦ A x x x<br>♣ x x x';
+    document.getElementById('def-w').innerHTML = '♠ K Q J x x<br>♥ x x x<br>♦ x x<br>♣ x x x';
+    document.getElementById('def-e').innerHTML = '(搭档)';
+    document.getElementById('def-s').innerHTML = '(暗手)';
+    document.getElementById('def-pos').textContent = '西家';
+
+    document.getElementById('def-lesson').innerHTML = `<h4>❓ ${q.q}</h4>`;
+    document.getElementById('def-opts').innerHTML = q.opts.map((o,i) => `<button class="play-btn" onclick="pickDef(${i},${q.ans},'${q.exp}')">${o}</button>`).join('');
+    document.getElementById('def-res').className = 'result-box';
+}
+
+function pickDef(i, ans, exp) {
+    document.querySelectorAll('#def-opts .play-btn').forEach((b,j) => { b.classList.remove('sel'); if(j===i)b.classList.add('sel'); });
+    const ok = i === ans;
+
+    // 音效和动画
+    playSound(ok ? 'correct' : 'wrong');
+    updateStreak(ok);
+    if(ok && streak.count >= 2) spawnConfetti(streak.count * 5);
+
+    const res = document.getElementById('def-res');
+    res.className = 'result-box ' + (ok?'correct':'wrong');
+    const cheer = getCheer(ok);
+    document.getElementById('def-res-t').innerHTML = (ok ? '✓ ' : '✗ ') + cheer + getStreakHTML();
+    document.getElementById('def-res-p').textContent = exp;
+}
+
+// 每日小贴士
+const DAILY_TIPS = [
+    '💡 记住：A=4, K=3, Q=2, J=1 点！',
+    '🃏 高花(♠♥)进局只要4阶，低花(♦♣)要5阶哦！',
+    '⭐ 开叫需要12+点，应叫需要6+点！',
+    '🎯 两套5张？先叫高的那个！',
+    '📚 1NT开叫表示15-17点均型牌！',
+    '🔥 坚持每天练习，奥运冠军不是梦！',
+    '💪 错了也没关系，这就是学习的过程！',
+    '🏆 连击越多，撒花越多哦！',
+    '✨ 同伴开叫后，先考虑有没有高花配合！',
+    '🎲 弱二开叫：5-10点+好的6张套！',
+    '🌟 今天的你比昨天更厉害了！',
+    '♠♥♦♣ 花色高低：黑桃>红桃>方块>梅花',
+    '📖 不懂就看解释，看多了就会了！',
+    '🥇 冠军都是从基础开始练起的！'
+];
+
+function showDailyTip() {
+    const tip = DAILY_TIPS[Math.floor(Math.random() * DAILY_TIPS.length)];
+    const tipEl = document.getElementById('daily-tip');
+    if(tipEl) tipEl.textContent = tip;
+}
+
+// 初始化
+updateUI();
+showDailyTip();
+
+// 欢迎动画
+setTimeout(() => {
+    const hour = new Date().getHours();
+    let greeting = hour < 12 ? '早上好' : (hour < 18 ? '下午好' : '晚上好');
+    showMascot('👋', `${greeting}，小冠军！`, '今天也要加油哦！');
+}, 500);
+
+// 注册 Service Worker (PWA离线支持)
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('SW注册成功'))
+            .catch(err => console.log('SW注册失败', err));
+    });
+}
+
+// iOS 安装提示
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallHint();
+});
+
+function showInstallHint() {
+    // 检查是否已安装或已显示过
+    if (window.matchMedia('(display-mode: standalone)').matches) return;
+    if (localStorage.getItem('installHintShown')) return;
+
+    setTimeout(() => {
+        showMascot('📲', '可以安装到主屏幕！', '点击浏览器菜单选择"添加到主屏幕"');
+        localStorage.setItem('installHintShown', '1');
+    }, 3000);
+}
+
+// 检测是否是 iOS Safari
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+if (isIOS && !isInStandaloneMode && !localStorage.getItem('installHintShown')) {
+    setTimeout(() => {
+        showMascot('📲', '添加到主屏幕', '点击 Safari 底部分享按钮 ⬆️ 然后选择"添加到主屏幕"');
+        localStorage.setItem('installHintShown', '1');
+    }, 5000);
+}
+</script>
+</body>
+</html>

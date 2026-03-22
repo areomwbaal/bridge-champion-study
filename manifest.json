@@ -1,0 +1,24 @@
+{
+  "name": "桥牌冠军训练营",
+  "short_name": "桥牌训练",
+  "description": "200天桥牌完整课程 - 叫牌、做庄、防守",
+  "start_url": "./bridge-bidding.html",
+  "display": "standalone",
+  "background_color": "#0a0a1a",
+  "theme_color": "#ffd700",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
