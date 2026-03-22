@@ -365,6 +365,32 @@
         .battle-result h3 { color: var(--accent); margin-bottom: 10px; }
         .battle-result .score { font-size: 24px; color: var(--accent-green); margin-bottom: 5px; }
         .battle-result .detail { font-size: 12px; color: var(--text-secondary); }
+
+        /* 摊牌对话框 */
+        .claim-dialog {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85); display: flex;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .claim-box {
+            background: var(--bg-card); border-radius: 12px; padding: 20px;
+            width: 90%; max-width: 350px; text-align: center;
+            border: 2px solid var(--accent);
+        }
+        .claim-box h3 { color: var(--accent); margin-bottom: 15px; }
+        .claim-box p { color: var(--text-secondary); margin-bottom: 15px; font-size: 14px; }
+        .claim-tricks {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+            margin-bottom: 15px;
+        }
+        .claim-trick-btn {
+            padding: 12px 8px; border: 2px solid var(--border-color);
+            border-radius: 8px; background: var(--bg-card-alt);
+            color: var(--text-main); font-size: 16px; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .claim-trick-btn:hover { border-color: var(--accent); background: var(--accent); color: #000; }
+        .claim-btns { display: flex; gap: 10px; justify-content: center; }
     </style>
 </head>
 <body>
@@ -569,7 +595,22 @@
 
     <div class="playable-cards" id="bt-play-cards" style="display:none;"></div>
 
-    <button class="btn secondary" id="bt-last-trick" onclick="showLastTrick()" style="display:none;">👁 上一墩</button>
+    <div class="battle-btns" style="display:flex; gap:8px; margin-bottom:10px;">
+        <button class="btn secondary" id="bt-last-trick" onclick="showLastTrick()" style="display:none; flex:1;">👁 上一墩</button>
+        <button class="btn secondary" id="bt-claim" onclick="showClaimDialog()" style="display:none; flex:1;">🏳️ 摊牌</button>
+    </div>
+
+    <!-- 摊牌对话框 -->
+    <div class="claim-dialog" id="claim-dialog" style="display:none;">
+        <div class="claim-box">
+            <h3>🏳️ 摊牌声明</h3>
+            <p>剩余 <span id="claim-remaining">0</span> 墩，你声明能赢多少墩？</p>
+            <div class="claim-tricks" id="claim-tricks"></div>
+            <div class="claim-btns">
+                <button class="btn secondary" onclick="hideClaimDialog()">取消</button>
+            </div>
+        </div>
+    </div>
 
     <div class="battle-result" id="bt-result" style="display:none;">
         <h3 id="bt-result-title">结果</h3>
@@ -1955,9 +1996,9 @@ function renderBattle() {
     } else if(battle.phase === 'play') {
         const turnLabel = {n:'北', e:'东', s:'南', w:'西'}[battle.turn];
         const declarerLabel = {n:'北', e:'东', s:'南', w:'西'}[battle.declarer];
-        const dummyStatus = battle.dummyRevealed ? '已摊牌' : '待首攻';
+        const dummyLabel = {n:'北', e:'东', s:'南', w:'西'}[battle.dummy];
         phaseEl.textContent = `第${battle.trickNumber}墩 - ${turnLabel}出牌`;
-        contractEl.textContent = `${battle.contract.level}${battle.contract.suit} ${declarerLabel}庄 [${dummyStatus}]`;
+        contractEl.textContent = `${battle.contract.level}${battle.contract.suit} ${declarerLabel}庄 ${dummyLabel}明手`;
         tricksEl.textContent = `NS:${battle.tricks.ns} EW:${battle.tricks.ew}`;
     } else if(battle.phase === 'end') {
         phaseEl.textContent = '结束';
@@ -1996,8 +2037,14 @@ function renderBattle() {
         const canPlay = battle.turn === 's' || (battle.turn === battle.dummy && battle.declarer === 's');
         document.getElementById('bt-play-cards').style.display = canPlay ? 'flex' : 'none';
 
+        // 显示摊牌按钮（打牌阶段且轮到用户时可以摊牌）
+        const totalTricks = battle.tricks.ns + battle.tricks.ew;
+        document.getElementById('bt-claim').style.display = (totalTricks > 0 && totalTricks < 13) ? 'block' : 'none';
+
         if(canPlay) renderPlayableCards();
         renderCurrentTrick();
+    } else {
+        document.getElementById('bt-claim').style.display = 'none';
     }
 }
 
@@ -2025,9 +2072,9 @@ function renderHand(pos) {
     let label = labels[pos];
     if(battle.phase === 'play' && pos === battle.dummy) {
         if(battle.dummyRevealed) {
-            label += ' <span style="color:var(--accent-green);">[明手-已摊牌]</span>';
+            label += ' <span style="color:var(--accent-green);">[明手]</span>';
         } else {
-            label += ' [明手-待摊牌]';
+            label += ' [明手-待亮牌]';
         }
     }
     if(battle.declarer === pos) {
@@ -2319,7 +2366,7 @@ function processPlayCard(pos, suit, rank) {
         delayForDummy = 1500; // 给用户时间看摊牌
         // 显示摊牌提示
         const dummyLabel = {n:'北家', e:'东家', s:'南家', w:'西家'}[battle.dummy];
-        showMascot('🃏', `${dummyLabel}摊牌!`, '明手的牌已全部显示');
+        showMascot('🃏', `${dummyLabel}亮牌`, '明手的牌已显示');
         playSound('levelup');
     }
 
@@ -2566,6 +2613,64 @@ function showBattleResult(title, score, detail='') {
     document.getElementById('bt-new-btn').style.display = 'block';
     document.getElementById('bt-bids').style.display = 'none';
     document.getElementById('bt-play-cards').style.display = 'none';
+    document.getElementById('bt-claim').style.display = 'none';
+}
+
+// ========== 摊牌(Claim)功能 ==========
+function showClaimDialog() {
+    if(battle.phase !== 'play') return;
+
+    const totalTricks = battle.tricks.ns + battle.tricks.ew;
+    const remaining = 13 - totalTricks;
+
+    if(remaining <= 0) return;
+
+    document.getElementById('claim-remaining').textContent = remaining;
+
+    // 生成可选的墩数按钮
+    const container = document.getElementById('claim-tricks');
+    let html = '';
+    for(let i = 0; i <= remaining; i++) {
+        html += `<button class="claim-trick-btn" onclick="makeClaim(${i})">${i}墩</button>`;
+    }
+    container.innerHTML = html;
+
+    document.getElementById('claim-dialog').style.display = 'flex';
+}
+
+function hideClaimDialog() {
+    document.getElementById('claim-dialog').style.display = 'none';
+}
+
+function makeClaim(claimedTricks) {
+    hideClaimDialog();
+
+    const totalTricks = battle.tricks.ns + battle.tricks.ew;
+    const remaining = 13 - totalTricks;
+
+    // 确定声明方是哪一方
+    const declarerTeam = (battle.declarer === 'n' || battle.declarer === 's') ? 'ns' : 'ew';
+    const userTeam = 'ns'; // 用户总是南北
+
+    // 如果用户是庄家方，声明的墩数加给NS
+    // 如果用户是防守方，声明的是防守方能赢的墩数
+    if(userTeam === declarerTeam) {
+        // 用户是庄家方，声明能赢claimedTricks墩
+        battle.tricks.ns += claimedTricks;
+        battle.tricks.ew += (remaining - claimedTricks);
+    } else {
+        // 用户是防守方，声明防守方能赢claimedTricks墩
+        battle.tricks.ns += claimedTricks;
+        battle.tricks.ew += (remaining - claimedTricks);
+    }
+
+    const claimLabel = claimedTricks === remaining ? '全部' : claimedTricks + '墩';
+    showMascot('🏳️', `摊牌: ${claimLabel}`, `剩余${remaining}墩已结算`);
+
+    setTimeout(() => {
+        finishGame();
+        renderBattle();
+    }, 1500);
 }
 
 // 注册 Service Worker (PWA离线支持)
