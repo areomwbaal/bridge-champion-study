@@ -494,6 +494,8 @@
 
     <div class="playable-cards" id="bt-play-cards" style="display:none;"></div>
 
+    <button class="btn secondary" id="bt-last-trick" onclick="showLastTrick()" style="display:none;">👁 上一墩</button>
+
     <div class="battle-result" id="bt-result" style="display:none;">
         <h3 id="bt-result-title">结果</h3>
         <div class="score" id="bt-result-score"></div>
@@ -961,6 +963,7 @@ function initBattlePage() {
         document.getElementById('bt-bid-seq').style.display = 'none';
         document.getElementById('bt-bids').style.display = 'none';
         document.getElementById('bt-play-cards').style.display = 'none';
+        document.getElementById('bt-last-trick').style.display = 'none';
         document.getElementById('bt-phase').textContent = '准备开始';
         document.getElementById('bt-contract').textContent = '';
         document.getElementById('bt-tricks').textContent = '';
@@ -1462,12 +1465,16 @@ const battle = {
     dummy: null,
     tricks: {ns:0, ew:0},
     currentTrick: [],
+    lastTrick: [],      // 上一墩
+    lastTrickWinner: null,
+    dummyRevealed: false, // 明手是否已摊牌
     lead: null,
     turn: null,
     trumpSuit: null,
     passCount: 0,
     lastBid: null,
-    doubled: 0
+    doubled: 0,
+    trickNumber: 0      // 当前第几墩
 };
 
 const POSITIONS = ['w', 'n', 'e', 's'];
@@ -1512,15 +1519,20 @@ function startBattle() {
     battle.dummy = null;
     battle.tricks = {ns:0, ew:0};
     battle.currentTrick = [];
+    battle.lastTrick = [];
+    battle.lastTrickWinner = null;
+    battle.dummyRevealed = false;
     battle.turn = battle.dealer;
     battle.trumpSuit = null;
     battle.passCount = 0;
     battle.lastBid = null;
     battle.doubled = 0;
+    battle.trickNumber = 0;
 
     document.getElementById('bt-start-btn').style.display = 'none';
     document.getElementById('bt-new-btn').style.display = 'none';
     document.getElementById('bt-result').style.display = 'none';
+    document.getElementById('bt-last-trick').style.display = 'none';
 
     renderBattle();
     if(battle.turn !== 's') {
@@ -1539,9 +1551,11 @@ function renderBattle() {
         contractEl.textContent = battle.lastBid ? `当前: ${battle.lastBid.level}${battle.lastBid.suit}` : '';
         tricksEl.textContent = '';
     } else if(battle.phase === 'play') {
-        phaseEl.textContent = '打牌中...';
-        contractEl.textContent = `定约: ${battle.contract.level}${battle.contract.suit}`;
-        tricksEl.textContent = `NS: ${battle.tricks.ns} | EW: ${battle.tricks.ew}`;
+        const turnLabel = {n:'北', e:'东', s:'南', w:'西'}[battle.turn];
+        const declarerLabel = {n:'北', e:'东', s:'南', w:'西'}[battle.declarer];
+        phaseEl.textContent = `第${battle.trickNumber}墩 - ${turnLabel}出牌`;
+        contractEl.textContent = `${battle.contract.level}${battle.contract.suit} ${declarerLabel}庄`;
+        tricksEl.textContent = `NS:${battle.tricks.ns} EW:${battle.tricks.ew}`;
     } else if(battle.phase === 'end') {
         phaseEl.textContent = '结束';
     }
@@ -1584,8 +1598,31 @@ function renderBattle() {
 function renderHand(pos) {
     const el = document.getElementById('bt-hand-'+pos);
     const h = battle.hands[pos];
-    const isHidden = battle.phase === 'play' && pos !== 's' && pos !== battle.dummy;
-    const label = pos === 'n' ? '北 (搭档)' : pos === 's' ? '南 (你)' : pos === 'e' ? '东' : '西';
+
+    // 确定是否隐藏手牌
+    // 叫牌阶段：只显示南家(用户)的牌
+    // 打牌阶段：显示南家和明手的牌（明手在首攻后才显示）
+    let isHidden = false;
+    if(battle.phase === 'bid') {
+        isHidden = pos !== 's'; // 叫牌时只看自己的牌
+    } else if(battle.phase === 'play') {
+        if(pos === 's') {
+            isHidden = false; // 南家永远可见
+        } else if(pos === battle.dummy) {
+            isHidden = !battle.dummyRevealed; // 明手在首攻后可见
+        } else {
+            isHidden = true; // 对手永远隐藏
+        }
+    }
+
+    const labels = {n: '北 (搭档)', s: '南 (你)', e: '东', w: '西'};
+    let label = labels[pos];
+    if(battle.phase === 'play' && pos === battle.dummy) {
+        label += ' [明手]';
+    }
+    if(battle.declarer === pos) {
+        label += ' 庄家';
+    }
 
     el.classList.toggle('hidden', isHidden);
 
@@ -1755,6 +1792,8 @@ function finishBidding() {
     battle.turn = battle.lead;
     battle.phase = 'play';
     battle.currentTrick = [];
+    battle.dummyRevealed = false; // 首攻后才摊牌
+    battle.trickNumber = 1;
 
     playSound('levelup');
     renderBattle();
@@ -1854,8 +1893,14 @@ function processPlayCard(pos, suit, rank) {
 
     // 添加到当前墩
     battle.currentTrick.push({pos, suit, rank});
+
+    // 首攻后摊牌（第一墩的第一张牌打出后）
+    if(!battle.dummyRevealed && battle.currentTrick.length === 1) {
+        battle.dummyRevealed = true;
+    }
+
     renderCurrentTrick();
-    renderHand(pos);
+    renderBattle(); // 重新渲染以显示明手
 
     // 检查一墩是否结束
     if(battle.currentTrick.length === 4) {
@@ -1894,8 +1939,17 @@ function finishTrick() {
         battle.tricks.ew++;
     }
 
+    // 保存上一墩
+    battle.lastTrick = [...battle.currentTrick];
+    battle.lastTrickWinner = winner;
+
+    // 显示上一墩按钮
+    document.getElementById('bt-last-trick').style.display = 'block';
+    updateLastTrickButton();
+
     battle.currentTrick = [];
     battle.turn = winner;
+    battle.trickNumber++;
 
     // 清空当前墩显示
     POSITIONS.forEach(p => {
@@ -1915,6 +1969,42 @@ function finishTrick() {
     const canAIPlay = battle.turn !== 's' && !(battle.turn === battle.dummy && battle.declarer === 's');
     if(canAIPlay) {
         setTimeout(() => aiDoPlay(), 600);
+    }
+}
+
+function updateLastTrickButton() {
+    const btn = document.getElementById('bt-last-trick');
+    const winnerLabel = {n:'北', e:'东', s:'南', w:'西'}[battle.lastTrickWinner];
+    btn.textContent = `👁 上一墩 (${winnerLabel}赢)`;
+}
+
+function showLastTrick() {
+    if(battle.lastTrick.length === 0) return;
+
+    let html = '<div style="text-align:center;margin-bottom:10px;"><b>上一墩</b></div>';
+    html += '<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">';
+
+    const order = ['w', 'n', 'e', 's'];
+    order.forEach(pos => {
+        const card = battle.lastTrick.find(c => c.pos === pos);
+        if(card) {
+            const cls = (card.suit === 'hearts' || card.suit === 'diamonds') ? 'h' : 's';
+            const posLabel = {n:'北', e:'东', s:'南', w:'西'}[pos];
+            const isWinner = pos === battle.lastTrickWinner;
+            html += `<div style="text-align:center;${isWinner?'border:2px solid #ffd700;border-radius:6px;padding:4px;':'padding:6px;'}">
+                <div style="font-size:10px;color:#888;">${posLabel}${isWinner?' ✓':''}</div>
+                <div class="${cls}" style="font-size:18px;">${SUIT_SYMBOLS[card.suit]}${card.rank}</div>
+            </div>`;
+        }
+    });
+
+    html += '</div>';
+
+    showMascot('🃏', '', '');
+    const mascot = document.querySelector('.mascot-msg');
+    if(mascot) {
+        mascot.innerHTML = html + '<div style="margin-top:10px;font-size:11px;color:#888;">点击任意处关闭</div>';
+        mascot.onclick = () => mascot.remove();
     }
 }
 
