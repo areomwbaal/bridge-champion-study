@@ -318,6 +318,16 @@
         .battle-hand .suit { margin: 2px 0; white-space: nowrap; }
         .battle-hand.hidden .suit { color: var(--text-muted); }
         .battle-hand.dummy { border: 2px dashed var(--accent-green); }
+        .battle-hand.dummy.revealed {
+            border: 3px solid var(--accent-green);
+            background: var(--bg-card-alt);
+            animation: dummyReveal 1s ease-out;
+        }
+        @keyframes dummyReveal {
+            0% { transform: scale(1); box-shadow: 0 0 0 rgba(78, 204, 163, 0); }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(78, 204, 163, 0.8); }
+            100% { transform: scale(1); box-shadow: 0 0 10px rgba(78, 204, 163, 0.3); }
+        }
         .battle-hand.turn { box-shadow: 0 0 10px var(--accent); }
 
         .battle-center { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100px; }
@@ -1945,8 +1955,9 @@ function renderBattle() {
     } else if(battle.phase === 'play') {
         const turnLabel = {n:'北', e:'东', s:'南', w:'西'}[battle.turn];
         const declarerLabel = {n:'北', e:'东', s:'南', w:'西'}[battle.declarer];
+        const dummyStatus = battle.dummyRevealed ? '已摊牌' : '待首攻';
         phaseEl.textContent = `第${battle.trickNumber}墩 - ${turnLabel}出牌`;
-        contractEl.textContent = `${battle.contract.level}${battle.contract.suit} ${declarerLabel}庄`;
+        contractEl.textContent = `${battle.contract.level}${battle.contract.suit} ${declarerLabel}庄 [${dummyStatus}]`;
         tricksEl.textContent = `NS:${battle.tricks.ns} EW:${battle.tricks.ew}`;
     } else if(battle.phase === 'end') {
         phaseEl.textContent = '结束';
@@ -1958,12 +1969,15 @@ function renderBattle() {
     renderHand('s');
     renderHand('w');
 
-    // 标记当前出牌方
+    // 标记当前出牌方和明手
     POSITIONS.forEach(p => {
         const el = document.getElementById('bt-hand-'+p);
-        el.classList.remove('turn', 'dummy');
+        el.classList.remove('turn', 'dummy', 'revealed');
         if(battle.turn === p) el.classList.add('turn');
-        if(battle.dummy === p) el.classList.add('dummy');
+        if(battle.dummy === p) {
+            el.classList.add('dummy');
+            if(battle.dummyRevealed) el.classList.add('revealed');
+        }
     });
 
     // 叫牌阶段
@@ -2010,7 +2024,11 @@ function renderHand(pos) {
     const labels = {n: '北 (搭档)', s: '南 (你)', e: '东', w: '西'};
     let label = labels[pos];
     if(battle.phase === 'play' && pos === battle.dummy) {
-        label += ' [明手]';
+        if(battle.dummyRevealed) {
+            label += ' <span style="color:var(--accent-green);">[明手-已摊牌]</span>';
+        } else {
+            label += ' [明手-待摊牌]';
+        }
     }
     if(battle.declarer === pos) {
         label += ' 庄家';
@@ -2187,12 +2205,20 @@ function finishBidding() {
     battle.dummyRevealed = false; // 首攻后才摊牌
     battle.trickNumber = 1;
 
-    playSound('levelup');
-    renderBattle();
+    // 显示进入打牌阶段的提示
+    const declarerLabel = {n:'北家', e:'东家', s:'南家', w:'西家'}[battle.declarer];
+    const dummyLabel = {n:'北家', e:'东家', s:'南家', w:'西家'}[battle.dummy];
+    const leadLabel = {n:'北家', e:'东家', s:'南家', w:'西家'}[battle.lead];
+    showMascot('🎯', `定约: ${battle.contract.level}${battle.contract.suit}`, `${declarerLabel}庄家，${dummyLabel}明手，${leadLabel}首攻`);
 
-    if(battle.turn !== 's' && battle.turn !== battle.dummy) {
-        setTimeout(() => aiDoPlay(), 1000);
-    }
+    playSound('levelup');
+
+    setTimeout(() => {
+        renderBattle();
+        if(battle.turn !== 's' && battle.turn !== battle.dummy) {
+            setTimeout(() => aiDoPlay(), 1000);
+        }
+    }, 2500); // 等待提示消失后再继续
 }
 
 function aiDoBid() {
@@ -2287,11 +2313,14 @@ function processPlayCard(pos, suit, rank) {
     battle.currentTrick.push({pos, suit, rank});
 
     // 首攻后摊牌（第一墩的第一张牌打出后）
+    let delayForDummy = 0;
     if(!battle.dummyRevealed && battle.currentTrick.length === 1) {
         battle.dummyRevealed = true;
+        delayForDummy = 1500; // 给用户时间看摊牌
         // 显示摊牌提示
         const dummyLabel = {n:'北家', e:'东家', s:'南家', w:'西家'}[battle.dummy];
-        showMascot('🃏', `${dummyLabel}摊牌`, '明手的牌已显示');
+        showMascot('🃏', `${dummyLabel}摊牌!`, '明手的牌已全部显示');
+        playSound('levelup');
     }
 
     renderCurrentTrick();
@@ -2299,17 +2328,17 @@ function processPlayCard(pos, suit, rank) {
 
     // 检查一墩是否结束
     if(battle.currentTrick.length === 4) {
-        setTimeout(() => finishTrick(), 1000);
+        setTimeout(() => finishTrick(), 1000 + delayForDummy);
         return;
     }
 
     battle.turn = getNextPos(battle.turn);
     renderBattle();
 
-    // AI出牌
+    // AI出牌（如果刚摊牌，延迟让用户看清楚）
     const canAIPlay = battle.turn !== 's' && !(battle.turn === battle.dummy && battle.declarer === 's');
     if(canAIPlay) {
-        setTimeout(() => aiDoPlay(), 600);
+        setTimeout(() => aiDoPlay(), 600 + delayForDummy);
     }
 }
 
