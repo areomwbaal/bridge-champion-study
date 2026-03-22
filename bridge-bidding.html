@@ -2289,6 +2289,9 @@ function processPlayCard(pos, suit, rank) {
     // 首攻后摊牌（第一墩的第一张牌打出后）
     if(!battle.dummyRevealed && battle.currentTrick.length === 1) {
         battle.dummyRevealed = true;
+        // 显示摊牌提示
+        const dummyLabel = {n:'北家', e:'东家', s:'南家', w:'西家'}[battle.dummy];
+        showMascot('🃏', `${dummyLabel}摊牌`, '明手的牌已显示');
     }
 
     renderCurrentTrick();
