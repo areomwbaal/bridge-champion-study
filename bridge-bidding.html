@@ -1030,6 +1030,118 @@ function judgeComp(h,pb,ob) {
     return{bid:'Pass',exp:`【暂时Pass】${p}点但没有好的叫品。在竞争中没有配合也没有好套时先Pass，等待机会`};
 }
 
+// 再叫判断：你开叫后同伴应叫，你该如何再叫
+function judgeRebid(h, myOpen, partnerResp) {
+    const p = hcp(h), l = lens(h), sh = shape(h), b = bal(sh);
+
+    // 同伴加叫了你的高花
+    if(myOpen === '1♥' && partnerResp === '2♥') {
+        if(p >= 16) return {bid: '3♥', exp: `【邀请进局】${p}点是高限开叫(16-18点)，同伴加叫2♥(6-9点)，你有额外实力应该邀请进局叫3♥`};
+        if(p >= 19) return {bid: '4♥', exp: `【直接进局】${p}点超强！即使同伴是低限(6点)，合计也有25+点，直接叫4♥`};
+        return {bid: 'Pass', exp: `【停在部分定约】${p}点是低限开叫(12-15点)，同伴2♥表示6-9点，合计最多24点不够进局，Pass停在2♥`};
+    }
+    if(myOpen === '1♠' && partnerResp === '2♠') {
+        if(p >= 16) return {bid: '3♠', exp: `【邀请进局】${p}点高限，邀请同伴进局`};
+        if(p >= 19) return {bid: '4♠', exp: `【直接进局】${p}点超强，直接进局`};
+        return {bid: 'Pass', exp: `【停在部分定约】${p}点低限，Pass停在2♠`};
+    }
+
+    // 同伴跳加叫（邀请）
+    if(myOpen === '1♥' && partnerResp === '3♥') {
+        if(p >= 14) return {bid: '4♥', exp: `【接受邀请】同伴3♥是邀请(10-12点)，你${p}点有额外实力，接受邀请叫4♥`};
+        return {bid: 'Pass', exp: `【拒绝邀请】${p}点是低限，拒绝邀请Pass停在3♥`};
+    }
+    if(myOpen === '1♠' && partnerResp === '3♠') {
+        if(p >= 14) return {bid: '4♠', exp: `【接受邀请】同伴邀请进局，你有额外实力接受`};
+        return {bid: 'Pass', exp: `【拒绝邀请】${p}点低限，拒绝邀请`};
+    }
+
+    // 同伴应叫1NT（6-9点无配合）
+    if(partnerResp === '1NT') {
+        if(p >= 19 && b) return {bid: '2NT', exp: `【邀请3NT】${p}点均型高限，邀请同伴进3NT`};
+        if(p >= 19 && l.s >= 6 && myOpen === '1♠') return {bid: '3♠', exp: `【强再叫】${p}点有6张♠，跳叫3♠显示强牌`};
+        if(p >= 19 && l.h >= 6 && myOpen === '1♥') return {bid: '3♥', exp: `【强再叫】${p}点有6张♥，跳叫3♥显示强牌`};
+        if(l.s >= 6 && myOpen === '1♠') return {bid: '2♠', exp: `【再叫原花色】${p}点有${l.s}张♠，再叫2♠表示6+张套`};
+        if(l.h >= 6 && myOpen === '1♥') return {bid: '2♥', exp: `【再叫原花色】${p}点有${l.h}张♥，再叫2♥表示6+张套`};
+        if(l.d >= 4 && myOpen.includes('♥')) return {bid: '2♦', exp: `【显示第二套】${p}点有${l.d}张♦，叫2♦显示第二套花色`};
+        if(l.c >= 4 && myOpen.includes('♠')) return {bid: '2♣', exp: `【显示第二套】${p}点有${l.c}张♣，叫2♣显示第二套花色`};
+        return {bid: 'Pass', exp: `【停在1NT】${p}点低限无额外牌型，Pass停在1NT`};
+    }
+
+    // 同伴应叫新花色（如1♥-1♠）
+    if(myOpen === '1♥' && partnerResp === '1♠') {
+        if(l.s >= 4) return {bid: '2♠', exp: `【支持同伴】${p}点有${l.s}张♠支持！找到4-4配合，加叫2♠`};
+        if(p >= 15 && b) return {bid: '1NT', exp: `【均型再叫】${p}点均型，叫1NT表示15-17点均型（有些同伴已知）`};
+        if(l.h >= 6) return {bid: '2♥', exp: `【再叫原套】${p}点有${l.h}张♥，再叫2♥显示6+张套`};
+        if(l.d >= 4) return {bid: '2♦', exp: `【第二套】${p}点有${l.d}张♦，叫2♦显示4+张第二套`};
+        if(l.c >= 4) return {bid: '2♣', exp: `【第二套】${p}点有${l.c}张♣，叫2♣显示4+张第二套`};
+        return {bid: '1NT', exp: `【等待性再叫】${p}点无好的再叫，叫1NT等待`};
+    }
+
+    // 同伴应叫2阶新花色（逼叫）
+    if(partnerResp === '2♣' || partnerResp === '2♦') {
+        const respSuit = partnerResp === '2♣' ? 'clubs' : 'diamonds';
+        if(h[respSuit].length >= 4) return {bid: partnerResp.replace('2','3'), exp: `【支持同伴】${p}点有${h[respSuit].length}张${partnerResp[1]}支持，加叫`};
+        if(myOpen === '1♥' && l.h >= 6) return {bid: '2♥', exp: `【再叫原套】${p}点有${l.h}张♥，再叫2♥`};
+        if(myOpen === '1♠' && l.s >= 6) return {bid: '2♠', exp: `【再叫原套】${p}点有${l.s}张♠，再叫2♠`};
+        if(p >= 15 && b) return {bid: '2NT', exp: `【均型再叫】${p}点均型高限，叫2NT`};
+        return {bid: '2NT', exp: `【等待性再叫】${p}点，叫2NT等待`};
+    }
+
+    return {bid: 'Pass', exp: `${p}点，根据情况Pass`};
+}
+
+// 满贯判断：探索满贯的叫牌
+function judgeSlam(h, partnerBid, partnerPoints) {
+    const p = hcp(h), l = lens(h), sh = shape(h);
+    const totalMin = p + partnerPoints;
+    const aces = (h.spades.includes('A')?1:0) + (h.hearts.includes('A')?1:0) + (h.diamonds.includes('A')?1:0) + (h.clubs.includes('A')?1:0);
+    const kings = (h.spades.includes('K')?1:0) + (h.hearts.includes('K')?1:0) + (h.diamonds.includes('K')?1:0) + (h.clubs.includes('K')?1:0);
+
+    // 同伴开叫2NT (20-21点)
+    if(partnerBid === '2NT') {
+        if(p >= 15) return {bid: '6NT', exp: `【直叫小满贯】同伴2NT=20-21点，你${p}点，合计${totalMin}+点足够小满贯，直接叫6NT`};
+        if(p >= 12 && aces >= 2) return {bid: '4NT', exp: `【量化邀请】${p}点+${aces}个A，叫4NT量化邀请满贯。同伴高限(21点)上6NT，低限Pass`};
+        if(p >= 11) return {bid: '4NT', exp: `【量化邀请】${p}点在邀请区间，叫4NT量化邀请`};
+        if(p >= 4 && l.h >= 5) return {bid: '3♦', exp: `【转移叫】有${l.h}张♥，叫3♦转移到♥，之后可以进一步探索`};
+        if(p >= 4 && l.s >= 5) return {bid: '3♥', exp: `【转移叫】有${l.s}张♠，叫3♥转移到♠`};
+        return {bid: '3NT', exp: `【止叫进局】${p}点不够满贯，叫3NT进局即可`};
+    }
+
+    // 同伴开叫1NT (15-17点)
+    if(partnerBid === '1NT') {
+        if(p >= 17) return {bid: '6NT', exp: `【直叫小满贯】同伴1NT=15-17点，你${p}点，合计32-34点够小满贯`};
+        if(p >= 15) return {bid: '4NT', exp: `【量化邀请】${p}点叫4NT量化邀请满贯`};
+        if(p >= 19 && aces >= 3) return {bid: '5NT', exp: `【大满贯邀请】${p}点+${aces}个A，叫5NT邀请大满贯`};
+        return {bid: '3NT', exp: `【进局】${p}点够进局但不够满贯`};
+    }
+
+    // 同伴开叫高花并你有好支持
+    if(partnerBid === '1♠' && l.s >= 4) {
+        if(p >= 17 && aces >= 2) return {bid: '4NT', exp: `【Blackwood问A】${p}点+${l.s}张♠支持+${aces}个A，叫4NT(Blackwood)问同伴有几个A`};
+        if(p >= 13) return {bid: '2NT', exp: `【Jacoby 2NT】${p}点+4张♠支持，叫2NT是Jacoby约定叫，显示进局实力的支持`};
+        return {bid: '4♠', exp: `【直接进局】${p}点有支持但不够满贯探索`};
+    }
+    if(partnerBid === '1♥' && l.h >= 4) {
+        if(p >= 17 && aces >= 2) return {bid: '4NT', exp: `【Blackwood问A】${p}点+${l.h}张♥支持+${aces}个A，叫4NT问A探索满贯`};
+        if(p >= 13) return {bid: '2NT', exp: `【Jacoby 2NT】${p}点+4张♥支持，Jacoby 2NT显示强支持`};
+        return {bid: '4♥', exp: `【直接进局】${p}点有支持但不够满贯`};
+    }
+
+    // 同伴回答Blackwood 4NT后
+    if(partnerBid === '5♦') { // 同伴有1个A
+        if(aces >= 2) return {bid: '6♠', exp: `【叫小满贯】同伴5♦=1个A，你有${aces}个A，共有3个A，可以叫6♠小满贯`};
+        return {bid: '5♠', exp: `【止叫】同伴只有1个A，你有${aces}个A，缺2个A不能叫满贯`};
+    }
+    if(partnerBid === '5♥') { // 同伴有2个A
+        if(aces >= 1) return {bid: '6♠', exp: `【叫小满贯】同伴5♥=2个A，你有${aces}个A，共有3+个A，叫6♠`};
+        if(aces >= 2 && kings >= 2) return {bid: '5NT', exp: `【问K】有足够的A，叫5NT继续问K探索大满贯`};
+        return {bid: '6♠', exp: `【小满贯】叫6♠小满贯`};
+    }
+
+    return {bid: '4NT', exp: `${p}点考虑满贯时，叫4NT(Blackwood)询问A的数量`};
+}
+
 // ============ UI ============
 function showPage(p) {
     document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -1316,11 +1428,46 @@ function newFreeBid() {
     document.getElementById('fb-res').className = 'result-box';
     const seq = document.getElementById('fb-seq');
 
-    if(freeBid.mode==='open'||freeBid.mode==='rebid'||freeBid.mode==='slam') {
+    if(freeBid.mode==='open') {
         seq.classList.remove('show');
         document.getElementById('fb-label').textContent = '你的手牌';
         answer = judgeOpen(hand);
         renderBids('fb-bids', ['Pass','1♣','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT']);
+    } else if(freeBid.mode==='rebid') {
+        seq.classList.add('show');
+        // 生成一个开叫场景，然后同伴应叫
+        const myOpens = ['1♥','1♠'];
+        const myOpen = myOpens[Math.floor(Math.random()*myOpens.length)];
+        const responses = myOpen === '1♥'
+            ? ['1♠','1NT','2♣','2♦','2♥','3♥']
+            : ['1NT','2♣','2♦','2♠','3♠'];
+        const partnerResp = responses[Math.floor(Math.random()*responses.length)];
+        ctx = {myOpen, partnerResp};
+        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="you">${myOpen}</td><td class="opp">Pass</td><td class="partner">${partnerResp}</td></tr><tr><td class="opp">Pass</td><td class="q">?</td><td></td><td></td></tr>`;
+        document.getElementById('fb-label').textContent = `你开叫了${myOpen}，同伴应叫${partnerResp}`;
+        answer = judgeRebid(hand, myOpen, partnerResp);
+        renderBids('fb-bids', ['Pass','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+    } else if(freeBid.mode==='slam') {
+        seq.classList.add('show');
+        // 生成满贯探索场景
+        const scenarios = [
+            {partnerBid: '2NT', partnerPts: 20, label: '同伴开叫2NT(20-21点)'},
+            {partnerBid: '1NT', partnerPts: 15, label: '同伴开叫1NT(15-17点)'},
+            {partnerBid: '1♠', partnerPts: 12, label: '同伴开叫1♠(12-21点)'},
+            {partnerBid: '1♥', partnerPts: 12, label: '同伴开叫1♥(12-21点)'},
+            {partnerBid: '5♦', partnerPts: 14, label: '你问4NT后同伴答5♦(1个A)'},
+            {partnerBid: '5♥', partnerPts: 14, label: '你问4NT后同伴答5♥(2个A)'},
+        ];
+        const scenario = scenarios[Math.floor(Math.random()*scenarios.length)];
+        ctx = scenario;
+        if(scenario.partnerBid.startsWith('5')) {
+            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">1♠</td><td class="opp">Pass</td><td class="you">4NT</td></tr><tr><td class="opp">Pass</td><td class="partner">${scenario.partnerBid}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        } else {
+            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${scenario.partnerBid}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        }
+        document.getElementById('fb-label').textContent = scenario.label;
+        answer = judgeSlam(hand, scenario.partnerBid, scenario.partnerPts);
+        renderBids('fb-bids', ['Pass','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT','5♣','5♦','5♥','5♠','5NT','6♣','6♦','6♥','6♠','6NT','7NT']);
     } else if(freeBid.mode==='resp') {
         seq.classList.add('show');
         const pb = ['1♣','1♦','1♥','1♠','1NT'][Math.floor(Math.random()*5)];
