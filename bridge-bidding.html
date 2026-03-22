@@ -565,7 +565,7 @@
     </div>
 
     <div class="battle-table">
-        <button class="copy-btn" id="bt-copy" onclick="copyBattleInfo()" title="复制牌型和叫牌">📋 复制</button>
+        <button class="copy-btn" id="bt-copy" onclick="copyBattleInfo()" title="复制牌型和叫牌" style="display:none;">📋 复制</button>
         <div class="battle-grid">
             <div class="battle-hand north" id="bt-hand-n">
                 <div class="pos-label">北 (搭档)</div>
@@ -2054,6 +2054,7 @@ function startBattle() {
     document.getElementById('bt-new-btn').style.display = 'none';
     document.getElementById('bt-result').style.display = 'none';
     document.getElementById('bt-last-trick').style.display = 'none';
+    document.getElementById('bt-copy').style.display = 'block';
 
     renderBattle();
     if(battle.turn !== 's') {
