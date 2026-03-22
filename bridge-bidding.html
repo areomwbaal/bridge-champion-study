@@ -1149,21 +1149,30 @@ function pickF(b) {
 let playMode = 'finesse';
 const PLAY_QS = {
     finesse: [
-        {q:'AQ在手，K在左边对手，如何打？', opts:['先打A','小牌飞Q','打Q'], ans:1, exp:'小牌飞Q，如果K在左边可以赢两墩'},
-        {q:'AQJ在手，如何最大化赢墩？', opts:['打A','反复飞牌','直接打QJ'], ans:1, exp:'反复飞牌，可能赢3墩'},
-        {q:'KQ在手对A，什么时候打？', opts:['立即打','等对手打A','投出这门'], ans:1, exp:'等对手打A，之后KQ都是赢墩'},
+        {q:'♦花色：明手AQ，如何打这门？', opts:['先打A','从明手小牌飞Q','打Q'], ans:1, exp:'从明手出小牌飞Q，如果K在西家可以赢两墩',
+         n:'♠ K Q x x<br>♥ x x x<br>♦ A Q x<br>♣ x x x', s:'♠ A J x x x<br>♥ A K<br>♦ x x x<br>♣ A x x', need:10, contract:'4♠'},
+        {q:'♠花色：你有AQJ，如何最大化赢墩？', opts:['打A','反复飞牌','直接打QJ'], ans:1, exp:'反复飞牌，如果K在西家可能赢3墩',
+         n:'♠ x x x x<br>♥ x x x<br>♦ A x x<br>♣ K x x', s:'♠ A Q J x x<br>♥ A K<br>♦ K x x<br>♣ A x x', need:10, contract:'4♠'},
+        {q:'♣花色：明手KQ对敌方A，什么时候打？', opts:['立即打','等对手打A','投出这门'], ans:1, exp:'等对手打A，之后KQ都是赢墩',
+         n:'♠ K Q x x<br>♥ x x x<br>♦ A x x<br>♣ K Q x', s:'♠ A J x x x<br>♥ A K<br>♦ K x x<br>♣ x x x', need:10, contract:'4♠'},
     ],
     establish: [
-        {q:'你有AKxxx对xxx，如何建立长套？', opts:['打AK后放小','先打小牌','只打AK'], ans:0, exp:'打AK清大牌，放小建立长套'},
-        {q:'长套建立需要几次进手？', opts:['不需要','可能需要多次','只需一次'], ans:1, exp:'可能需要多次进手来建立和兑现'},
+        {q:'♦花色：你有AKxxx对xxx，如何建立长套？', opts:['打AK后放小','先打小牌','只打AK'], ans:0, exp:'打AK清大牌，放小建立长套赢墩',
+         n:'♠ x x<br>♥ K Q x<br>♦ x x x<br>♣ A K x x', s:'♠ A K x<br>♥ A x x<br>♦ A K x x x<br>♣ x x', need:9, contract:'3NT'},
+        {q:'♣花色：如何建立并兑现长套？', opts:['不需要进手','需要多次进手','只需一次进手'], ans:1, exp:'可能需要多次进手来建立和兑现长套',
+         n:'♠ A x<br>♥ x x x<br>♦ K x x<br>♣ A K x x x', s:'♠ K Q x<br>♥ A K x<br>♦ A x x x<br>♣ x x x', need:9, contract:'3NT'},
     ],
     ruff: [
-        {q:'明手有单张，如何利用？', opts:['将吃','垫牌','忽略'], ans:0, exp:'用明手的将牌将吃'},
-        {q:'交叉将吃的条件？', opts:['双方都有短套','只需一方短套','不需要条件'], ans:0, exp:'双方都有不同花色的短套'},
+        {q:'明手♦单张，如何利用？', opts:['将吃','垫牌','忽略'], ans:0, exp:'用明手的将牌将吃♦，可以多赢一墩',
+         n:'♠ K x x x<br>♥ x x x<br>♦ x<br>♣ A x x x x', s:'♠ A Q J x x<br>♥ A K<br>♦ x x x x<br>♣ K x', need:10, contract:'4♠'},
+        {q:'双方都有短套，如何操作？', opts:['交叉将吃','只用明手将吃','只用手上将吃'], ans:0, exp:'交叉将吃：明手将吃♦，手上将吃♣，多赢好几墩',
+         n:'♠ K x x x<br>♥ x x<br>♦ A K x x x<br>♣ x', s:'♠ A Q J x x<br>♥ A K x<br>♦ x<br>♣ x x x x', need:11, contract:'5♠'},
     ],
     squeeze: [
-        {q:'挤牌的基本条件？', opts:['有足够赢墩','差一墩','差很多墩'], ans:1, exp:'通常在差一墩时使用挤牌'},
-        {q:'被挤的人会怎样？', opts:['被迫放弃保护','可以安全垫牌','没有影响'], ans:0, exp:'被迫在两门牌中放弃一门的保护'},
+        {q:'差一墩完成定约，考虑什么技术？', opts:['继续飞牌','挤牌','放弃'], ans:1, exp:'挤牌通常在差一墩时使用，迫使对手放弃保护',
+         n:'♠ A K<br>♥ A K<br>♦ x x x x x<br>♣ x x x', s:'♠ x x<br>♥ x x<br>♦ A K Q J<br>♣ A K Q J', need:12, contract:'6NT'},
+        {q:'挤牌成功后，对手会怎样？', opts:['被迫放弃保护','可以安全垫牌','没有影响'], ans:0, exp:'被迫在两门牌中放弃一门的保护，让你多赢一墩',
+         n:'♠ A K x<br>♥ A K x<br>♦ x x x<br>♣ x x x', s:'♠ Q J x<br>♥ Q J x<br>♦ A K Q<br>♣ A K Q', need:12, contract:'6NT'},
     ]
 };
 
@@ -1180,15 +1189,15 @@ function newPlayQ() {
     const qs = PLAY_QS[playMode] || PLAY_QS.finesse;
     const q = qs[Math.floor(Math.random()*qs.length)];
 
-    document.getElementById('play-contract').textContent = '定约: 4♠ 南庄家';
-    document.getElementById('play-n').innerHTML = '♠ K Q x x<br>♥ x x x<br>♦ A x x<br>♣ x x x';
+    document.getElementById('play-contract').textContent = '定约: ' + q.contract + ' 南庄家';
+    document.getElementById('play-n').innerHTML = q.n;
     document.getElementById('play-w').innerHTML = '(暗)';
     document.getElementById('play-e').innerHTML = '(暗)';
-    document.getElementById('play-s').innerHTML = '♠ A J x x x<br>♥ A K<br>♦ K x x<br>♣ A x x';
-    document.getElementById('play-need').textContent = '10';
+    document.getElementById('play-s').innerHTML = q.s;
+    document.getElementById('play-need').textContent = q.need;
 
     document.getElementById('play-lesson').innerHTML = `<h4>❓ ${q.q}</h4>`;
-    document.getElementById('play-opts').innerHTML = q.opts.map((o,i) => `<button class="play-btn" onclick="pickPlay(${i},${q.ans},'${q.exp}')">${o}</button>`).join('');
+    document.getElementById('play-opts').innerHTML = q.opts.map((o,i) => `<button class="play-btn" onclick="pickPlay(${i},${q.ans},'${q.exp.replace(/'/g, "\\'")}')">${o}</button>`).join('');
     document.getElementById('play-res').className = 'result-box';
 }
 
@@ -1212,16 +1221,22 @@ function pickPlay(i, ans, exp) {
 let defMode = 'lead';
 const DEF_QS = {
     lead: [
-        {q:'对3NT，你有KQJxx，首攻什么？', opts:['K','小牌','Q'], ans:0, exp:'首攻K，从连张顶张攻'},
-        {q:'对4♠，你有单张♦，首攻什么？', opts:['单张♦','其他花色','将牌'], ans:0, exp:'首攻单张寻求将吃'},
-        {q:'搭档叫过♥，首攻什么？', opts:['♥','自己的长套','将牌'], ans:0, exp:'首攻搭档叫过的花色'},
+        {q:'对3NT，你有♠KQJxx，首攻什么？', opts:['♠K','♠小牌','♠Q'], ans:0, exp:'首攻K，从连张顶张攻',
+         n:'♠ x x x<br>♥ K Q J<br>♦ A x x x<br>♣ K x x', w:'♠ K Q J x x<br>♥ x x x<br>♦ x x<br>♣ x x x', pos:'西家', contract:'3NT'},
+        {q:'对4♠，你有单张♦，首攻什么？', opts:['单张♦','♣长套','将牌♠'], ans:0, exp:'首攻单张寻求将吃',
+         n:'♠ K x x<br>♥ A x x<br>♦ K Q x x<br>♣ x x x', w:'♠ x x<br>♥ K Q x x<br>♦ x<br>♣ Q J x x x', pos:'西家', contract:'4♠'},
+        {q:'搭档叫过♥，对3NT首攻什么？', opts:['♥','♠自己的长套','♦'], ans:0, exp:'首攻搭档叫过的花色',
+         n:'♠ x x<br>♥ x x<br>♦ A K Q x<br>♣ K Q x x', w:'♠ Q J x x x<br>♥ x x x<br>♦ x x<br>♣ x x x', pos:'西家', contract:'3NT'},
     ],
     signal: [
-        {q:'搭档首攻A，你有Kxx，打什么？', opts:['K(鼓励)','x(不鼓励)','中间牌'], ans:0, exp:'打K鼓励继续'},
-        {q:'计数信号中，打高再低表示？', opts:['偶数张','奇数张','有大牌'], ans:0, exp:'高低=偶数张'},
+        {q:'搭档首攻♦A，你有♦Kxx，打什么？', opts:['♦K(鼓励)','♦x(不鼓励)','♦中间牌'], ans:0, exp:'打K鼓励继续，表示有大牌',
+         n:'♠ K Q x<br>♥ A Q x<br>♦ Q J x<br>♣ x x x x', w:'(搭档)', pos:'东家', contract:'3NT', e:'♠ x x x<br>♥ x x x<br>♦ K x x<br>♣ K x x x'},
+        {q:'计数信号中，打高再低表示？', opts:['偶数张','奇数张','有大牌'], ans:0, exp:'高低=偶数张，低高=奇数张',
+         n:'♠ A Q J x<br>♥ K x<br>♦ A x x<br>♣ K x x x', w:'(搭档)', pos:'东家', contract:'4♠', e:'♠ x x<br>♥ x x x x<br>♦ x x x x<br>♣ x x x'},
     ],
     plan: [
-        {q:'庄家有AKQ，你的策略？', opts:['等待其他花色','直接攻击','放弃'], ans:0, exp:'这门无法击败，寻找其他进攻路线'},
+        {q:'明手♦有AKQ，你的防守策略？', opts:['攻击其他花色','直接攻♦','放弃'], ans:0, exp:'♦无法击败，寻找其他花色进攻路线',
+         n:'♠ x x<br>♥ x x x<br>♦ A K Q x x<br>♣ K Q x', w:'♠ K Q J x x<br>♥ A x x<br>♦ x x<br>♣ x x x', pos:'西家', contract:'3NT'},
     ]
 };
 
@@ -1238,15 +1253,15 @@ function newDefQ() {
     const qs = DEF_QS[defMode] || DEF_QS.lead;
     const q = qs[Math.floor(Math.random()*qs.length)];
 
-    document.getElementById('def-contract').textContent = '定约: 3NT 南庄家';
-    document.getElementById('def-n').innerHTML = '♠ x x x<br>♥ K Q J<br>♦ A x x x<br>♣ x x x';
-    document.getElementById('def-w').innerHTML = '♠ K Q J x x<br>♥ x x x<br>♦ x x<br>♣ x x x';
-    document.getElementById('def-e').innerHTML = '(搭档)';
+    document.getElementById('def-contract').textContent = '定约: ' + q.contract + ' 南庄家';
+    document.getElementById('def-n').innerHTML = q.n;
+    document.getElementById('def-w').innerHTML = q.w || '(搭档)';
+    document.getElementById('def-e').innerHTML = q.e || '(搭档)';
     document.getElementById('def-s').innerHTML = '(暗手)';
-    document.getElementById('def-pos').textContent = '西家';
+    document.getElementById('def-pos').textContent = q.pos;
 
     document.getElementById('def-lesson').innerHTML = `<h4>❓ ${q.q}</h4>`;
-    document.getElementById('def-opts').innerHTML = q.opts.map((o,i) => `<button class="play-btn" onclick="pickDef(${i},${q.ans},'${q.exp}')">${o}</button>`).join('');
+    document.getElementById('def-opts').innerHTML = q.opts.map((o,i) => `<button class="play-btn" onclick="pickDef(${i},${q.ans},'${q.exp.replace(/'/g, "\\'")}')">${o}</button>`).join('');
     document.getElementById('def-res').className = 'result-box';
 }
 
