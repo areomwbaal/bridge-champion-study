@@ -183,6 +183,9 @@
         .quiz-head span { color: var(--text-secondary); }
         .quiz-head b { color: var(--accent); }
 
+        .quiz-tips { background: var(--bg-card-alt); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 12px; line-height: 1.5; border-left: 3px solid var(--accent); }
+        .quiz-tips b { color: var(--accent); }
+
         .seq-box { background: var(--bg-card-alt); border-radius: 8px; padding: 10px; margin-bottom: 10px; display: none; }
         .seq-box.show { display: block; }
         .seq-table { width: 100%; text-align: center; font-size: 14px; }
@@ -317,18 +320,6 @@
         .modal-title.fail { color: var(--accent-red); }
         .modal-text { font-size: 12px; color: var(--text-secondary); margin-bottom: 15px; line-height: 1.5; }
         .modal-btn { padding: 10px 30px; border: none; border-radius: 6px; background: var(--accent); color: #000; font-size: 14px; font-weight: bold; cursor: pointer; }
-
-        /* 训练前知识卡片 */
-        .tips-box { background: var(--bg-card); border-radius: 12px; padding: 20px; width: 90%; max-width: 400px; border: 2px solid var(--accent); max-height: 80vh; overflow-y: auto; }
-        .tips-header { text-align: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-        .tips-day { display: inline-block; background: var(--accent); color: #000; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-bottom: 8px; }
-        .tips-title { display: block; font-size: 18px; color: var(--text-main); font-weight: bold; }
-        .tips-content { background: var(--bg-input); border-radius: 8px; padding: 15px; margin-bottom: 15px; font-size: 14px; line-height: 1.6; color: var(--text-main); }
-        .tips-content h4 { color: var(--accent); margin-bottom: 10px; font-size: 16px; }
-        .tips-content .formula { background: var(--bg-card); border-left: 3px solid var(--accent); padding: 8px 12px; margin: 10px 0; font-family: monospace; }
-        .tips-content .box { background: var(--bg-card); border-radius: 6px; padding: 10px; margin: 10px 0; }
-        .tips-footer { display: flex; gap: 10px; justify-content: center; }
-        .tips-footer .btn { flex: 1; max-width: 150px; }
 
         /* 对战页面 */
         .battle-status { background: var(--bg-nav); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
@@ -491,6 +482,7 @@
         <span><b id="qz-cur">1</b>/<b id="qz-tot">10</b></span>
         <span>正确<b id="qz-ok">0</b></span>
     </div>
+    <div class="quiz-tips" id="qz-tips"></div>
     <div class="seq-box" id="qz-seq">
         <table class="seq-table"><thead><tr><th>西</th><th>北(搭档)</th><th>东</th><th>南(你)</th></tr></thead><tbody id="qz-seq-body"></tbody></table>
     </div>
@@ -677,20 +669,6 @@
     </div>
 </div>
 
-<!-- 训练前知识卡片 -->
-<div class="modal" id="tips-modal">
-    <div class="tips-box">
-        <div class="tips-header">
-            <span class="tips-day" id="tips-day">第1天</span>
-            <span class="tips-title" id="tips-title">知识要点</span>
-        </div>
-        <div class="tips-content" id="tips-content"></div>
-        <div class="tips-footer">
-            <button class="btn secondary" onclick="closeTipsModal()">返回</button>
-            <button class="btn primary" onclick="confirmStartQuiz()">开始练习 💪</button>
-        </div>
-    </div>
-</div>
 
 <script>
 // ============ 主题系统 ============
@@ -1571,41 +1549,28 @@ function selDy(d) {
 
 function startQuiz() {
     const les = LESSONS[selDay-1];
-
-    // 显示训练前知识卡片
-    document.getElementById('tips-day').textContent = `第${selDay}天`;
-    document.getElementById('tips-title').textContent = les.t;
-    document.getElementById('tips-content').innerHTML = les.c + getTipsForType(les);
-    document.getElementById('tips-modal').classList.add('show');
-}
-
-function getTipsForType(les) {
-    // 根据课程类型添加额外的关键提示
-    const tips = {
-        open: `<div class="box"><b>📌 开叫要点：</b><br>• 12+点可以开叫<br>• 5张高花开1♥/1♠<br>• 15-17点均型开1NT<br>• 22+点开2♣</div>`,
-        resp: `<div class="box"><b>📌 应叫要点：</b><br>• 6+点才能应叫<br>• 优先叫4张高花<br>• 有支持先加叫<br>• 点力不够就Pass</div>`,
-        comp: `<div class="box"><b>📌 竞叫要点：</b><br>• 被X后有10+点可XX<br>• 敌方争叫后可用X表示力量<br>• 有配合可以竞争<br>• 没把握就Pass</div>`,
-        rebid: `<div class="box"><b>📌 再叫要点：</b><br>• 低限(12-15)保守再叫<br>• 中限(16-18)邀请<br>• 高限(19-21)进局</div>`,
-        slam: `<div class="box"><b>📌 满贯要点：</b><br>• 33+点考虑小满贯<br>• 4NT问A(Blackwood)<br>• 5♣=0/4A, 5♦=1A, 5♥=2A</div>`
-    };
-    return tips[les.type] || tips['open'];
-}
-
-function closeTipsModal() {
-    document.getElementById('tips-modal').classList.remove('show');
-}
-
-function confirmStartQuiz() {
-    document.getElementById('tips-modal').classList.remove('show');
-
-    const les = LESSONS[selDay-1];
     qz = {day:selDay, cur:1, tot:les.test?12:10, ok:0, ans:false};
     document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
     document.getElementById('page-quiz').classList.add('active');
     document.getElementById('qz-day').textContent = qz.day;
     document.getElementById('qz-tot').textContent = qz.tot;
+
+    // 显示当天知识提示
+    document.getElementById('qz-tips').innerHTML = `<b>${les.t}</b>：${getTipsForType(les)}`;
+
     updQz();
     genQ();
+}
+
+function getTipsForType(les) {
+    const tips = {
+        open: '12+点开叫 | 5张高花开1♥/1♠ | 15-17均型开1NT | 22+点开2♣',
+        resp: '6+点应叫 | 优先叫4张高花 | 有支持先加叫 | 点力不够Pass',
+        comp: '被X后10+点可XX | 敌方争叫可用X表示力量 | 有配合可竞争 | 没把握Pass',
+        rebid: '低限(12-15)保守 | 中限(16-18)邀请 | 高限(19-21)进局',
+        slam: '33+点考虑小满贯 | 4NT问A | 5♣=0/4A, 5♦=1A, 5♥=2A'
+    };
+    return tips[les.type] || tips['open'];
 }
 
 function updQz() {
