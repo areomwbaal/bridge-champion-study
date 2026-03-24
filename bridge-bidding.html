@@ -170,6 +170,9 @@
         .lesson-body .formula { background: var(--bg-input); padding: 8px 12px; border-radius: 6px; font-family: monospace; color: var(--accent-green); margin: 8px 0; font-size: 16px; }
         .lesson-body .hl { color: var(--accent); font-weight: bold; }
 
+        .lesson-tips { background: var(--bg-card-alt); border-radius: 6px; padding: 10px 12px; margin-top: 10px; font-size: 13px; line-height: 1.6; border-left: 3px solid var(--accent); }
+        .lesson-tips b { color: var(--accent); }
+
         .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-bottom: 6px; transition: all 0.2s; }
         .btn:hover { transform: translateY(-1px); }
         .btn.primary { background: linear-gradient(90deg, var(--accent), #ff8c00); color: #000; }
@@ -182,9 +185,6 @@
         .quiz-head { background: var(--bg-nav); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 14px; }
         .quiz-head span { color: var(--text-secondary); }
         .quiz-head b { color: var(--accent); }
-
-        .quiz-tips { background: var(--bg-card-alt); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 12px; line-height: 1.5; border-left: 3px solid var(--accent); }
-        .quiz-tips b { color: var(--accent); }
 
         .seq-box { background: var(--bg-card-alt); border-radius: 8px; padding: 10px; margin-bottom: 10px; display: none; }
         .seq-box.show { display: block; }
@@ -469,6 +469,7 @@
             <span class="lesson-badge new" id="l-badge">今日</span>
         </div>
         <div class="lesson-body" id="l-body"></div>
+        <div class="lesson-tips" id="l-tips"></div>
     </div>
 
     <button class="btn primary" id="start-btn" onclick="startQuiz()">开始训练 💪</button>
@@ -482,7 +483,6 @@
         <span><b id="qz-cur">1</b>/<b id="qz-tot">10</b></span>
         <span>正确<b id="qz-ok">0</b></span>
     </div>
-    <div class="quiz-tips" id="qz-tips"></div>
     <div class="seq-box" id="qz-seq">
         <table class="seq-table"><thead><tr><th>西</th><th>北(搭档)</th><th>东</th><th>南(你)</th></tr></thead><tbody id="qz-seq-body"></tbody></table>
     </div>
@@ -1535,6 +1535,7 @@ function selDy(d) {
     document.getElementById('l-phase').textContent = PHASES[les.phase-1].name;
     document.getElementById('l-title').textContent = `第${d}天：${les.t}`;
     document.getElementById('l-body').innerHTML = les.c;
+    document.getElementById('l-tips').innerHTML = `<b>📌 要点：</b>${getTipsForType(les)}`;
 
     const badge = document.getElementById('l-badge');
     const btn = document.getElementById('start-btn');
@@ -1554,10 +1555,6 @@ function startQuiz() {
     document.getElementById('page-quiz').classList.add('active');
     document.getElementById('qz-day').textContent = qz.day;
     document.getElementById('qz-tot').textContent = qz.tot;
-
-    // 显示当天知识提示
-    document.getElementById('qz-tips').innerHTML = `<b>${les.t}</b>：${getTipsForType(les)}`;
-
     updQz();
     genQ();
 }

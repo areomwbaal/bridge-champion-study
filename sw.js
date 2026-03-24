@@ -1,5 +1,5 @@
 // 桥牌训练营 Service Worker
-const CACHE_NAME = 'bridge-training-v3';
+const CACHE_NAME = 'bridge-training-v4';
 const ASSETS = [
   './',
   './bridge-bidding.html',
