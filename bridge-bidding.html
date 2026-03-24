@@ -318,6 +318,18 @@
         .modal-text { font-size: 12px; color: var(--text-secondary); margin-bottom: 15px; line-height: 1.5; }
         .modal-btn { padding: 10px 30px; border: none; border-radius: 6px; background: var(--accent); color: #000; font-size: 14px; font-weight: bold; cursor: pointer; }
 
+        /* 训练前知识卡片 */
+        .tips-box { background: var(--bg-card); border-radius: 12px; padding: 20px; width: 90%; max-width: 400px; border: 2px solid var(--accent); max-height: 80vh; overflow-y: auto; }
+        .tips-header { text-align: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        .tips-day { display: inline-block; background: var(--accent); color: #000; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-bottom: 8px; }
+        .tips-title { display: block; font-size: 18px; color: var(--text-main); font-weight: bold; }
+        .tips-content { background: var(--bg-input); border-radius: 8px; padding: 15px; margin-bottom: 15px; font-size: 14px; line-height: 1.6; color: var(--text-main); }
+        .tips-content h4 { color: var(--accent); margin-bottom: 10px; font-size: 16px; }
+        .tips-content .formula { background: var(--bg-card); border-left: 3px solid var(--accent); padding: 8px 12px; margin: 10px 0; font-family: monospace; }
+        .tips-content .box { background: var(--bg-card); border-radius: 6px; padding: 10px; margin: 10px 0; }
+        .tips-footer { display: flex; gap: 10px; justify-content: center; }
+        .tips-footer .btn { flex: 1; max-width: 150px; }
+
         /* 对战页面 */
         .battle-status { background: var(--bg-nav); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
         .battle-status .phase { color: var(--accent); font-weight: bold; }
@@ -662,6 +674,21 @@
         <div class="modal-title ok" id="m-title">完成!</div>
         <div class="modal-text" id="m-text"></div>
         <button class="modal-btn" onclick="closeModal()">继续</button>
+    </div>
+</div>
+
+<!-- 训练前知识卡片 -->
+<div class="modal" id="tips-modal">
+    <div class="tips-box">
+        <div class="tips-header">
+            <span class="tips-day" id="tips-day">第1天</span>
+            <span class="tips-title" id="tips-title">知识要点</span>
+        </div>
+        <div class="tips-content" id="tips-content"></div>
+        <div class="tips-footer">
+            <button class="btn secondary" onclick="closeTipsModal()">返回</button>
+            <button class="btn primary" onclick="confirmStartQuiz()">开始练习 💪</button>
+        </div>
     </div>
 </div>
 
@@ -1544,6 +1571,34 @@ function selDy(d) {
 
 function startQuiz() {
     const les = LESSONS[selDay-1];
+
+    // 显示训练前知识卡片
+    document.getElementById('tips-day').textContent = `第${selDay}天`;
+    document.getElementById('tips-title').textContent = les.t;
+    document.getElementById('tips-content').innerHTML = les.c + getTipsForType(les);
+    document.getElementById('tips-modal').classList.add('show');
+}
+
+function getTipsForType(les) {
+    // 根据课程类型添加额外的关键提示
+    const tips = {
+        open: `<div class="box"><b>📌 开叫要点：</b><br>• 12+点可以开叫<br>• 5张高花开1♥/1♠<br>• 15-17点均型开1NT<br>• 22+点开2♣</div>`,
+        resp: `<div class="box"><b>📌 应叫要点：</b><br>• 6+点才能应叫<br>• 优先叫4张高花<br>• 有支持先加叫<br>• 点力不够就Pass</div>`,
+        comp: `<div class="box"><b>📌 竞叫要点：</b><br>• 被X后有10+点可XX<br>• 敌方争叫后可用X表示力量<br>• 有配合可以竞争<br>• 没把握就Pass</div>`,
+        rebid: `<div class="box"><b>📌 再叫要点：</b><br>• 低限(12-15)保守再叫<br>• 中限(16-18)邀请<br>• 高限(19-21)进局</div>`,
+        slam: `<div class="box"><b>📌 满贯要点：</b><br>• 33+点考虑小满贯<br>• 4NT问A(Blackwood)<br>• 5♣=0/4A, 5♦=1A, 5♥=2A</div>`
+    };
+    return tips[les.type] || tips['open'];
+}
+
+function closeTipsModal() {
+    document.getElementById('tips-modal').classList.remove('show');
+}
+
+function confirmStartQuiz() {
+    document.getElementById('tips-modal').classList.remove('show');
+
+    const les = LESSONS[selDay-1];
     qz = {day:selDay, cur:1, tot:les.test?12:10, ok:0, ans:false};
     document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
     document.getElementById('page-quiz').classList.add('active');
@@ -1583,7 +1638,7 @@ function genQ() {
         document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
         document.getElementById('qz-label').textContent = '你的手牌';
         answer = judgeResp(hand, pb);
-        renderBids('qz-bids', getValidBidsAfter(pb));
+        renderBids('qz-bids', ['Pass'].concat(getValidBidsAfter(pb)));
     } else {
         seq.classList.add('show');
         const pbs = ['1♣','1♦','1♥','1♠','1NT'];
@@ -1632,7 +1687,7 @@ function dispHand(pre, h) {
 function getValidBidsAfter(lastBid) {
     const suits = ['♣', '♦', '♥', '♠', 'NT'];
     const suitOrder = {'♣':0, '♦':1, '♥':2, '♠':3, 'NT':4};
-    const result = ['Pass'];
+    const result = [];
 
     // 解析最后一个叫品
     const lastLevel = parseInt(lastBid[0]);
@@ -1936,7 +1991,7 @@ function newFreeBid() {
         document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="you">${myOpen}</td><td class="opp">Pass</td><td class="partner">${partnerResp}</td></tr><tr><td class="opp">Pass</td><td class="q">?</td><td></td><td></td></tr>`;
         document.getElementById('fb-label').textContent = `你开叫了${myOpen}，同伴应叫${partnerResp}`;
         answer = judgeRebid(hand, myOpen, partnerResp);
-        renderBids('fb-bids', getValidBidsAfter(partnerResp));
+        renderBids('fb-bids', ['Pass'].concat(getValidBidsAfter(partnerResp)));
     } else if(freeBid.mode==='slam') {
         seq.classList.add('show');
         // 生成满贯探索场景
@@ -1957,7 +2012,7 @@ function newFreeBid() {
         }
         document.getElementById('fb-label').textContent = scenario.label;
         answer = judgeSlam(hand, scenario.partnerBid, scenario.partnerPts);
-        renderBids('fb-bids', getValidBidsAfter(scenario.partnerBid));
+        renderBids('fb-bids', ['Pass'].concat(getValidBidsAfter(scenario.partnerBid)));
     } else if(freeBid.mode==='resp') {
         seq.classList.add('show');
         const pb = ['1♣','1♦','1♥','1♠','1NT'][Math.floor(Math.random()*5)];
@@ -1965,7 +2020,7 @@ function newFreeBid() {
         document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
         document.getElementById('fb-label').textContent = '你的手牌';
         answer = judgeResp(hand,pb);
-        renderBids('fb-bids', getValidBidsAfter(pb));
+        renderBids('fb-bids', ['Pass'].concat(getValidBidsAfter(pb)));
     } else if(freeBid.mode==='comp') {
         seq.classList.add('show');
         const pbs = ['1♣','1♦','1♥','1♠','1NT'];
