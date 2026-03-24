@@ -1158,7 +1158,11 @@ const S = ['spades','hearts','diamonds','clubs'];
 const HV = {A:4,K:3,Q:2,J:1};
 
 let prog = JSON.parse(localStorage.getItem('bc200'))||{done:[],cur:1,stars:0};
-let selPhase=1, selWeek=1, selDay=1;
+// 初始化时定位到当前应该练习的天
+let initLesson = LESSONS[prog.cur-1] || LESSONS[0];
+let selPhase = initLesson.phase;
+let selWeek = Math.ceil((LESSONS.filter(l=>l.phase===initLesson.phase).findIndex(l=>l.day===prog.cur)+1)/7) || 1;
+let selDay = prog.cur;
 let qz = {day:1,cur:0,tot:10,ok:0,ans:false};
 let freeBid = {mode:'open',ok:0,tot:0};
 let hand, answer, ctx={};
@@ -1579,7 +1583,7 @@ function genQ() {
         document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
         document.getElementById('qz-label').textContent = '你的手牌';
         answer = judgeResp(hand, pb);
-        renderBids('qz-bids', ['Pass','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT','5♣','5♦','6NT']);
+        renderBids('qz-bids', getValidBidsAfter(pb));
     } else {
         seq.classList.add('show');
         const pbs = ['1♣','1♦','1♥','1♠','1NT'];
@@ -1594,7 +1598,7 @@ function genQ() {
             document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">X</td><td class="q">?</td></tr>`;
             document.getElementById('qz-label').textContent = '同伴开叫被加倍，你的手牌';
             answer = judgeAfterX(hand, pb);
-            renderBids('qz-bids', ['Pass','XX','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT']);
+            renderBids('qz-bids', ['Pass','XX'].concat(getValidBidsAfter(pb)));
         } else {
             // 敌方争叫场景
             let obs = ['2♣','2♦'];
@@ -1608,7 +1612,7 @@ function genQ() {
             document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
             document.getElementById('qz-label').textContent = '你的手牌';
             answer = judgeComp(hand, pb, ob);
-            renderBids('qz-bids', ['Pass','X','XX','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+            renderBids('qz-bids', ['Pass','X'].concat(getValidBidsAfter(ob)));
         }
     }
 
@@ -1622,6 +1626,28 @@ function dispHand(pre, h) {
     document.getElementById(pre+'-c').textContent = h.clubs.join(' ')||'-';
     document.getElementById(pre+'-hcp').textContent = hcp(h);
     document.getElementById(pre+'-shape').textContent = shape(h);
+}
+
+// 获取比指定叫品高的所有有效叫品
+function getValidBidsAfter(lastBid) {
+    const suits = ['♣', '♦', '♥', '♠', 'NT'];
+    const suitOrder = {'♣':0, '♦':1, '♥':2, '♠':3, 'NT':4};
+    const result = ['Pass'];
+
+    // 解析最后一个叫品
+    const lastLevel = parseInt(lastBid[0]);
+    const lastSuit = lastBid.slice(1);
+    const lastSuitIdx = suitOrder[lastSuit];
+
+    // 生成所有比 lastBid 高的叫品
+    for(let level = 1; level <= 7; level++) {
+        for(let i = 0; i < suits.length; i++) {
+            if(level > lastLevel || (level === lastLevel && i > lastSuitIdx)) {
+                result.push(level + suits[i]);
+            }
+        }
+    }
+    return result;
 }
 
 function renderBids(id, bids) {
@@ -1703,6 +1729,25 @@ function closeModal() {
     document.getElementById('page-plan').classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.nav-btn')[0].classList.add('active');
+    // 如果刚完成的是当前天，自动跳转到新解锁的下一天
+    if(prog.done.includes(selDay) && selDay < prog.cur) {
+        selDay = prog.cur;
+        // 检查是否需要切换到下一周
+        const pDays = LESSONS.filter(l=>l.phase===selPhase);
+        const curWeekDays = pDays.slice((selWeek-1)*7, selWeek*7);
+        if(!curWeekDays.some(d=>d.day===selDay)) {
+            selWeek = Math.ceil((pDays.findIndex(d=>d.day===selDay)+1)/7);
+        }
+        // 检查是否需要切换到下一阶段
+        const curPhaseDays = LESSONS.filter(l=>l.phase===selPhase);
+        if(!curPhaseDays.some(d=>d.day===selDay)) {
+            const newLesson = LESSONS[selDay-1];
+            if(newLesson) {
+                selPhase = newLesson.phase;
+                selWeek = 1;
+            }
+        }
+    }
     updateUI();
 }
 
@@ -1891,7 +1936,7 @@ function newFreeBid() {
         document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="you">${myOpen}</td><td class="opp">Pass</td><td class="partner">${partnerResp}</td></tr><tr><td class="opp">Pass</td><td class="q">?</td><td></td><td></td></tr>`;
         document.getElementById('fb-label').textContent = `你开叫了${myOpen}，同伴应叫${partnerResp}`;
         answer = judgeRebid(hand, myOpen, partnerResp);
-        renderBids('fb-bids', ['Pass','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+        renderBids('fb-bids', getValidBidsAfter(partnerResp));
     } else if(freeBid.mode==='slam') {
         seq.classList.add('show');
         // 生成满贯探索场景
@@ -1912,7 +1957,7 @@ function newFreeBid() {
         }
         document.getElementById('fb-label').textContent = scenario.label;
         answer = judgeSlam(hand, scenario.partnerBid, scenario.partnerPts);
-        renderBids('fb-bids', ['Pass','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT','5♣','5♦','5♥','5♠','5NT','6♣','6♦','6♥','6♠','6NT','7NT']);
+        renderBids('fb-bids', getValidBidsAfter(scenario.partnerBid));
     } else if(freeBid.mode==='resp') {
         seq.classList.add('show');
         const pb = ['1♣','1♦','1♥','1♠','1NT'][Math.floor(Math.random()*5)];
@@ -1920,7 +1965,7 @@ function newFreeBid() {
         document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
         document.getElementById('fb-label').textContent = '你的手牌';
         answer = judgeResp(hand,pb);
-        renderBids('fb-bids', ['Pass','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT','5♣','5♦','6NT']);
+        renderBids('fb-bids', getValidBidsAfter(pb));
     } else if(freeBid.mode==='comp') {
         seq.classList.add('show');
         const pbs = ['1♣','1♦','1♥','1♠','1NT'];
@@ -1934,7 +1979,7 @@ function newFreeBid() {
             document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">X</td><td class="q">?</td></tr>`;
             document.getElementById('fb-label').textContent = '同伴开叫被加倍';
             answer = judgeAfterX(hand, pb);
-            renderBids('fb-bids', ['Pass','XX','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT']);
+            renderBids('fb-bids', ['Pass','XX'].concat(getValidBidsAfter(pb)));
         } else {
             let obs = ['2♣','2♦'];
             if(pb==='1♠')obs=['2♣','2♦','2♥'];
@@ -1947,7 +1992,7 @@ function newFreeBid() {
             document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
             document.getElementById('fb-label').textContent = '你的手牌';
             answer = judgeComp(hand,pb,ob);
-            renderBids('fb-bids', ['Pass','X','XX','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♥','4♠']);
+            renderBids('fb-bids', ['Pass','X'].concat(getValidBidsAfter(ob)));
         }
     } else if(freeBid.mode==='practical') {
         // 实战多轮叫牌场景
