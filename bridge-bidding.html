@@ -31,6 +31,7 @@
             --accent: #ffd700;
             --accent-green: #4ecca3;
             --accent-red: #e74c3c;
+            --suit-black: #ddd;
         }
 
         /* 白色主题 */
@@ -47,6 +48,7 @@
             --accent: #d4a000;
             --accent-green: #2e8b57;
             --accent-red: #c0392b;
+            --suit-black: #222;
         }
 
         /* 护眼主题 */
@@ -63,6 +65,7 @@
             --accent: #8b6914;
             --accent-green: #1b5e20;
             --accent-red: #b71c1c;
+            --suit-black: #1a3a1a;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -200,7 +203,7 @@
         .hand-label { text-align: center; font-size: 14px; color: var(--text-secondary); margin-bottom: 6px; }
         .suit-row { display: flex; align-items: center; margin: 4px 0; font-size: 22px; }
         .suit-sym { width: 32px; font-size: 26px; }
-        .s, .c { color: #333; text-shadow: 0 0 2px #fff; }
+        .s, .c { color: var(--suit-black); }
         .h, .d { color: var(--accent-red); }
         .cards { letter-spacing: 2px; }
         .hand-stats { display: flex; justify-content: space-around; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-color); text-align: center; }
@@ -313,13 +316,26 @@
         /* 弹窗 */
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 100; }
         .modal.show { display: flex; }
-        .modal-box { background: var(--bg-card); border-radius: 12px; padding: 25px; text-align: center; width: 85%; max-width: 300px; border: 2px solid var(--accent); }
+        .modal-box { background: var(--bg-card); border-radius: 12px; padding: 25px; text-align: center; width: 90%; max-width: 400px; border: 2px solid var(--accent); max-height: 85vh; overflow-y: auto; }
         .modal-icon { font-size: 40px; margin-bottom: 10px; }
         .modal-title { font-size: 18px; margin-bottom: 8px; }
         .modal-title.ok { color: var(--accent); }
         .modal-title.fail { color: var(--accent-red); }
         .modal-text { font-size: 12px; color: var(--text-secondary); margin-bottom: 15px; line-height: 1.5; }
         .modal-btn { padding: 10px 30px; border: none; border-radius: 6px; background: var(--accent); color: #000; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .review-section { text-align: left; margin: 15px 0; max-height: 300px; overflow-y: auto; }
+        .review-section:empty { display: none; }
+        .review-title { color: var(--accent); font-size: 14px; font-weight: bold; margin-bottom: 10px; text-align: center; }
+        .review-item { background: var(--bg-card-alt); border-radius: 8px; padding: 10px; margin-bottom: 10px; border-left: 3px solid var(--accent-red); }
+        .review-item .q-num { color: var(--accent); font-size: 12px; margin-bottom: 5px; }
+        .review-item .hand-info { font-size: 13px; margin-bottom: 5px; }
+        .review-item .hand-info .s, .review-item .hand-info .c { color: var(--suit-black); }
+        .review-item .hand-info .h, .review-item .hand-info .d { color: var(--accent-red); }
+        .review-item .seq-info { font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; }
+        .review-item .bid-info { font-size: 13px; margin-bottom: 5px; }
+        .review-item .bid-info .wrong { color: var(--accent-red); text-decoration: line-through; }
+        .review-item .bid-info .correct { color: var(--accent-green); font-weight: bold; }
+        .review-item .exp-info { font-size: 12px; color: var(--text-secondary); line-height: 1.4; background: var(--bg-input); padding: 8px; border-radius: 4px; }
 
         /* 对战页面 */
         .battle-status { background: var(--bg-nav); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
@@ -665,6 +681,7 @@
         <div class="modal-icon" id="m-icon">🏆</div>
         <div class="modal-title ok" id="m-title">完成!</div>
         <div class="modal-text" id="m-text"></div>
+        <div class="review-section" id="m-review"></div>
         <button class="modal-btn" onclick="closeModal()">继续</button>
     </div>
 </div>
@@ -1168,7 +1185,7 @@ let initLesson = LESSONS[prog.cur-1] || LESSONS[0];
 let selPhase = initLesson.phase;
 let selWeek = Math.ceil((LESSONS.filter(l=>l.phase===initLesson.phase).findIndex(l=>l.day===prog.cur)+1)/7) || 1;
 let selDay = prog.cur;
-let qz = {day:1,cur:0,tot:10,ok:0,ans:false};
+let qz = {day:1,cur:0,tot:10,ok:0,ans:false,mistakes:[]};
 let freeBid = {mode:'open',ok:0,tot:0};
 let hand, answer, ctx={};
 
@@ -1550,7 +1567,7 @@ function selDy(d) {
 
 function startQuiz() {
     const les = LESSONS[selDay-1];
-    qz = {day:selDay, cur:1, tot:les.test?12:10, ok:0, ans:false};
+    qz = {day:selDay, cur:1, tot:les.test?12:10, ok:0, ans:false, mistakes:[]};
     document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
     document.getElementById('page-quiz').classList.add('active');
     document.getElementById('qz-day').textContent = qz.day;
@@ -1684,6 +1701,17 @@ function pickQ(b) {
 
     const ok = b === answer.bid;
     if(ok) qz.ok++;
+    else {
+        // 记录错题用于复盘
+        qz.mistakes.push({
+            num: qz.cur,
+            hand: {spades:[...hand.spades], hearts:[...hand.hearts], diamonds:[...hand.diamonds], clubs:[...hand.clubs]},
+            ctx: {...ctx},
+            userBid: b,
+            correctBid: answer.bid,
+            exp: answer.exp
+        });
+    }
 
     // 音效和动画
     playSound(ok ? 'correct' : 'wrong');
@@ -1737,6 +1765,28 @@ function finishQ() {
     document.getElementById('m-title').textContent = pass ? (pct===100?'完美!':'通过!') : '继续加油!';
     document.getElementById('m-title').className = 'modal-title ' + (pass?'ok':'fail');
     document.getElementById('m-text').innerHTML = `正确率：${pct}%<br>${qz.ok}/${qz.tot}题` + (pass ? (pct===100?'<br>+3⭐':pct>=80?'<br>+2⭐':'<br>+1⭐') : `<br>需要${les.final?90:les.test?80:60}%通过`);
+
+    // 生成复盘内容
+    const reviewEl = document.getElementById('m-review');
+    if(qz.mistakes.length > 0) {
+        reviewEl.innerHTML = '<div class="review-title">📝 错题复盘</div>' + qz.mistakes.map(m => {
+            const handStr = `<span class="s">♠${m.hand.spades.join('')||'-'}</span> ` +
+                           `<span class="h">♥${m.hand.hearts.join('')||'-'}</span> ` +
+                           `<span class="d">♦${m.hand.diamonds.join('')||'-'}</span> ` +
+                           `<span class="c">♣${m.hand.clubs.join('')||'-'}</span>`;
+            const seqStr = m.ctx.pb ? (m.ctx.ob ? `同伴开${m.ctx.pb}，敌方${m.ctx.ob}` : `同伴开${m.ctx.pb}`) : '开叫位';
+            return `<div class="review-item">
+                <div class="q-num">第${m.num}题</div>
+                <div class="hand-info">${handStr}</div>
+                <div class="seq-info">${seqStr}</div>
+                <div class="bid-info">你叫：<span class="wrong">${m.userBid}</span> → 应叫：<span class="correct">${m.correctBid}</span></div>
+                <div class="exp-info">${m.exp}</div>
+            </div>`;
+        }).join('');
+    } else {
+        reviewEl.innerHTML = '';
+    }
+
     document.getElementById('modal').classList.add('show');
 }
 
