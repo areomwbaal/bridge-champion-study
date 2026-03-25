@@ -1614,7 +1614,7 @@ function genQ() {
         const pbs = les.pb || ['1♣','1♦','1♥','1♠','1NT'];
         const pb = pbs[Math.floor(Math.random()*pbs.length)];
         ctx = {pb};
-        document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(pb)}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
         document.getElementById('qz-label').textContent = '你的手牌';
         answer = judgeResp(hand, pb);
         renderBids('qz-bids', ['Pass'].concat(getValidBidsAfter(pb)));
@@ -1629,7 +1629,7 @@ function genQ() {
         if(isDoubled) {
             // 敌方加倍场景 - XX练习
             ctx = {pb, ob: 'X'};
-            document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">X</td><td class="q">?</td></tr>`;
+            document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(pb)}</td><td class="opp">X</td><td class="q">?</td></tr>`;
             document.getElementById('qz-label').textContent = '同伴开叫被加倍，你的手牌';
             answer = judgeAfterX(hand, pb);
             renderBids('qz-bids', ['Pass','XX'].concat(getValidBidsAfter(pb)));
@@ -1643,7 +1643,7 @@ function genQ() {
             if(pb==='1NT')obs=['2♣','2♦','2♥','2♠'];
             const ob = obs[Math.floor(Math.random()*obs.length)];
             ctx = {pb, ob};
-            document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
+            document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(pb)}</td><td class="opp">${colorBid(ob)}</td><td class="q">?</td></tr>`;
             document.getElementById('qz-label').textContent = '你的手牌';
             answer = judgeComp(hand, pb, ob);
             renderBids('qz-bids', ['Pass','X'].concat(getValidBidsAfter(ob)));
@@ -1660,6 +1660,16 @@ function dispHand(pre, h) {
     document.getElementById(pre+'-c').textContent = h.clubs.join(' ')||'-';
     document.getElementById(pre+'-hcp').textContent = hcp(h);
     document.getElementById(pre+'-shape').textContent = shape(h);
+}
+
+// 给叫品中的花色符号添加颜色
+function colorBid(bid) {
+    if(!bid) return bid;
+    return bid
+        .replace(/♠/g, '<span class="s">♠</span>')
+        .replace(/♥/g, '<span class="h">♥</span>')
+        .replace(/♦/g, '<span class="d">♦</span>')
+        .replace(/♣/g, '<span class="c">♣</span>');
 }
 
 // 获取比指定叫品高的所有有效叫品
@@ -1690,7 +1700,7 @@ function renderBids(id, bids) {
         if(b==='Pass') cls += ' pass';
         if(b==='X') cls += ' x';
         if(b==='XX') cls += ' xx';
-        return `<button class="${cls}" onclick="pick${id==='qz-bids'?'Q':'F'}('${b}')">${b}</button>`;
+        return `<button class="${cls}" onclick="pick${id==='qz-bids'?'Q':'F'}('${b}')">${colorBid(b)}</button>`;
     }).join('');
 }
 
@@ -2000,7 +2010,7 @@ function newFreeBid() {
             : ['1NT','2♣','2♦','2♠','3♠'];
         const partnerResp = responses[Math.floor(Math.random()*responses.length)];
         ctx = {myOpen, partnerResp};
-        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="you">${myOpen}</td><td class="opp">Pass</td><td class="partner">${partnerResp}</td></tr><tr><td class="opp">Pass</td><td class="q">?</td><td></td><td></td></tr>`;
+        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="you">${colorBid(myOpen)}</td><td class="opp">Pass</td><td class="partner">${colorBid(partnerResp)}</td></tr><tr><td class="opp">Pass</td><td class="q">?</td><td></td><td></td></tr>`;
         document.getElementById('fb-label').textContent = `你开叫了${myOpen}，同伴应叫${partnerResp}`;
         answer = judgeRebid(hand, myOpen, partnerResp);
         renderBids('fb-bids', ['Pass'].concat(getValidBidsAfter(partnerResp)));
@@ -2018,9 +2028,9 @@ function newFreeBid() {
         const scenario = scenarios[Math.floor(Math.random()*scenarios.length)];
         ctx = scenario;
         if(scenario.partnerBid.startsWith('5')) {
-            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">1♠</td><td class="opp">Pass</td><td class="you">4NT</td></tr><tr><td class="opp">Pass</td><td class="partner">${scenario.partnerBid}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid('1♠')}</td><td class="opp">Pass</td><td class="you">4NT</td></tr><tr><td class="opp">Pass</td><td class="partner">${colorBid(scenario.partnerBid)}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
         } else {
-            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${scenario.partnerBid}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(scenario.partnerBid)}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
         }
         document.getElementById('fb-label').textContent = scenario.label;
         answer = judgeSlam(hand, scenario.partnerBid, scenario.partnerPts);
@@ -2029,7 +2039,7 @@ function newFreeBid() {
         seq.classList.add('show');
         const pb = ['1♣','1♦','1♥','1♠','1NT'][Math.floor(Math.random()*5)];
         ctx = {pb};
-        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(pb)}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
         document.getElementById('fb-label').textContent = '你的手牌';
         answer = judgeResp(hand,pb);
         renderBids('fb-bids', ['Pass'].concat(getValidBidsAfter(pb)));
@@ -2043,7 +2053,7 @@ function newFreeBid() {
 
         if(isDoubled) {
             ctx = {pb, ob: 'X'};
-            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">X</td><td class="q">?</td></tr>`;
+            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(pb)}</td><td class="opp">X</td><td class="q">?</td></tr>`;
             document.getElementById('fb-label').textContent = '同伴开叫被加倍';
             answer = judgeAfterX(hand, pb);
             renderBids('fb-bids', ['Pass','XX'].concat(getValidBidsAfter(pb)));
@@ -2056,7 +2066,7 @@ function newFreeBid() {
             if(pb==='1NT')obs=['2♣','2♦','2♥','2♠'];
             const ob = obs[Math.floor(Math.random()*obs.length)];
             ctx = {pb,ob};
-            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${pb}</td><td class="opp">${ob}</td><td class="q">?</td></tr>`;
+            document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(pb)}</td><td class="opp">${colorBid(ob)}</td><td class="q">?</td></tr>`;
             document.getElementById('fb-label').textContent = '你的手牌';
             answer = judgeComp(hand,pb,ob);
             renderBids('fb-bids', ['Pass','X'].concat(getValidBidsAfter(ob)));
@@ -2066,7 +2076,7 @@ function newFreeBid() {
         seq.classList.add('show');
         const scenario = generatePracticalScenario(hand);
         ctx = scenario;
-        document.getElementById('fb-seq-body').innerHTML = scenario.seqHtml;
+        document.getElementById('fb-seq-body').innerHTML = colorBid(scenario.seqHtml);
         document.getElementById('fb-label').textContent = scenario.label;
         answer = scenario.answer;
         renderBids('fb-bids', scenario.bids);
