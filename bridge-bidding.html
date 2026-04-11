@@ -184,6 +184,17 @@
 
         .reset-link { display: block; text-align: center; color: var(--accent-red); font-size: 11px; margin-top: 15px; cursor: pointer; }
 
+        /* 薄弱环节 */
+        .weak-card { background: var(--bg-card); border-radius: 10px; padding: 14px; margin-top: 12px; }
+        .weak-card h3 { font-size: 15px; margin-bottom: 10px; }
+        .weak-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; }
+        .weak-label { width: 72px; flex-shrink: 0; color: var(--text-secondary); }
+        .weak-bar-bg { flex: 1; height: 16px; background: var(--bg-input); border-radius: 8px; overflow: hidden; margin: 0 8px; }
+        .weak-bar { height: 100%; border-radius: 8px; transition: width .3s; min-width: 2px; }
+        .weak-pct { width: 36px; text-align: right; font-size: 12px; color: var(--text-muted); }
+        .weak-none { color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px 0; }
+        .weak-drill { display: inline-block; margin-top: 10px; padding: 6px 14px; background: var(--accent); color: #111; border-radius: 6px; font-size: 13px; cursor: pointer; border: none; font-weight: 600; }
+
         /* 练习页 */
         .quiz-head { background: var(--bg-nav); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 14px; }
         .quiz-head span { color: var(--text-secondary); }
@@ -488,6 +499,12 @@
         <div class="lesson-tips" id="l-tips"></div>
     </div>
 
+    <div class="weak-card" id="weak-card" style="display:none;">
+        <h3>📉 薄弱环节</h3>
+        <div id="weak-bars"></div>
+        <button class="weak-drill" onclick="drillWeakArea()">针对训练</button>
+    </div>
+
     <button class="btn primary" id="start-btn" onclick="startQuiz()">开始训练 💪</button>
     <span class="reset-link" onclick="resetAll()">重置进度</span>
 </div>
@@ -525,6 +542,8 @@
         <button class="week-btn" onclick="setBidMode('comp')">竞叫</button>
         <button class="week-btn" onclick="setBidMode('rebid')">再叫</button>
         <button class="week-btn" onclick="setBidMode('slam')">满贯</button>
+        <button class="week-btn" onclick="setBidMode('overcall')">争叫</button>
+        <button class="week-btn" onclick="setBidMode('convention')">约定叫</button>
         <button class="week-btn" onclick="setBidMode('practical')">实战</button>
     </div>
     <div class="quiz-head"><span>正确<b id="fb-ok">0</b>/<b id="fb-tot">0</b></span></div>
@@ -1201,9 +1220,19 @@ const g6 = (h,su) => h[su].length===6 && h[su].filter(r=>['A','K','Q','J'].inclu
 // ============ 叫牌判断 ============
 function judgeOpen(h) {
     const p=hcp(h), sh=shape(h), l=lens(h), b=bal(sh);
-    // 检查7张套和8张套（用于阻击开叫）
     const has7 = (suit) => h[suit].length >= 7;
     const has8 = (suit) => h[suit].length >= 8;
+    const suitHonors = (suit) => h[suit].filter(r=>['A','K','Q','J','T'].includes(r)).length;
+    const twoLongest = S.map(s=>h[s].length).sort((a,b)=>b-a).slice(0,2).reduce((a,b)=>a+b,0);
+    const ruleOf20 = p + twoLongest >= 20;
+
+    // 赌博3NT开叫：长跑低花(AKQxxxx+)加旁套止张
+    if(p>=16&&p<=21) {
+        const hasRunning = (suit) => h[suit].length>=7 && h[suit].includes('A') && h[suit].includes('K') && h[suit].includes('Q');
+        const otherStopped = (longSuit) => S.filter(s=>s!==longSuit).every(s=>h[s].some(r=>['A','K','Q'].includes(r))||h[s].length===0);
+        if(hasRunning('clubs')&&otherStopped('clubs'))return{bid:'3NT',exp:`【赌博3NT】${p}点有坚实的♣长套(AKQ+)且旁门有止张。3NT开叫表示有可跑的低花长套，期望打3NT`};
+        if(hasRunning('diamonds')&&otherStopped('diamonds'))return{bid:'3NT',exp:`【赌博3NT】${p}点有坚实的♦长套(AKQ+)且旁门有止张。3NT开叫表示有可跑的低花长套`};
+    }
 
     // 4阶阻击开叫（8张套，非常弱）
     if(p>=3&&p<=10) {
@@ -1211,7 +1240,7 @@ function judgeOpen(h) {
         if(has8('hearts'))return{bid:'4♥',exp:`【4阶阻击】${p}点+${l.h}张♥！8张以上长套直接开4阶阻击`};
     }
 
-    // 3阶阻击开叫（7张套，5-10点）
+    // 3阶阻击开叫（7张套，5-10点，3阶放宽大牌要求）
     if(p>=5&&p<=10) {
         if(has7('spades')&&l.h<4)return{bid:'3♠',exp:`【3阶阻击】${p}点+${l.s}张♠！7张套开叫3阶，比弱二更有阻击性。阻击叫的目的是干扰对手叫牌`};
         if(has7('hearts')&&l.s<4)return{bid:'3♥',exp:`【3阶阻击】${p}点+${l.h}张♥！7张套开叫3阶阻击`};
@@ -1219,81 +1248,171 @@ function judgeOpen(h) {
         if(has7('clubs'))return{bid:'3♣',exp:`【3阶阻击】${p}点+${l.c}张♣！7张♣套开叫3♣阻击`};
     }
 
-    // 弱二开叫（6张套，5-10点）
+    // 弱二开叫（6张套，5-10点，要求2+大牌在长套中）
     if(p>=5&&p<=10) {
-        if(g6(h,'spades')&&l.h<4)return{bid:'2♠',exp:`【弱二开叫】${p}点+6张♠，点力不够1阶开叫(12+)，但有好的6张套可以阻击性开叫2♠`};
-        if(g6(h,'hearts')&&l.s<4)return{bid:'2♥',exp:`【弱二开叫】${p}点+6张♥，点力不够1阶开叫(12+)，但有好的6张套可以阻击性开叫2♥`};
-        if(g6(h,'diamonds'))return{bid:'2♦',exp:`【弱二开叫】${p}点+6张♦，点力不够1阶开叫(12+)，但有好的6张套可以阻击性开叫2♦`};
+        if(g6(h,'spades')&&l.h<4)return{bid:'2♠',exp:`【弱二开叫】${p}点+6张♠(含${suitHonors('spades')}张大牌)。弱二要求6张好套(2+大牌)，阻击性开叫`};
+        if(g6(h,'hearts')&&l.s<4)return{bid:'2♥',exp:`【弱二开叫】${p}点+6张♥(含${suitHonors('hearts')}张大牌)。弱二要求6张好套(2+大牌)，阻击性开叫`};
+        if(g6(h,'diamonds'))return{bid:'2♦',exp:`【弱二开叫】${p}点+6张♦(含${suitHonors('diamonds')}张大牌)。弱二要求6张好套(2+大牌)，阻击性开叫`};
     }
 
-    // 点力不够
-    if(p<12)return{bid:'Pass',exp:`【不开叫】只有${p}点，开叫需要12+点。牌力不足时Pass，等待同伴开叫或对手开叫后再行动`};
+    // 点力不够 - 检查Rule of 20
+    if(p<12) {
+        if(p>=10&&ruleOf20&&(l.s>=5||l.h>=5))return{bid:l.s>=l.h?'1♠':'1♥',exp:`【Rule of 20开叫】只有${p}点但HCP(${p})+两最长套(${twoLongest})=${p+twoLongest}≥20，满足"20法则"可以轻开叫。有好的${l.s>=l.h?l.s+'张♠':l.h+'张♥'}长套`};
+        if(p>=10&&ruleOf20&&l.d>=5)return{bid:'1♦',exp:`【Rule of 20开叫】${p}点但HCP+两最长套=${p+twoLongest}≥20，满足"20法则"。开叫1♦`};
+        return{bid:'Pass',exp:`【不开叫】只有${p}点，开叫需要12+点(或满足Rule of 20)。HCP(${p})+两最长套(${twoLongest})=${p+twoLongest}${ruleOf20?'':'<20'}。牌力不足时Pass`};
+    }
 
     // 强牌
     if(p>=22)return{bid:'2♣',exp:`【技术性强开叫】${p}点是超强牌！2♣是人为强开叫，表示22+点，要求同伴必须应叫，不能Pass`};
-    if(p>=25&&b)return{bid:'3NT',exp:`【赌博3NT】${p}点超强均型！可以直接开叫3NT，告诉同伴你有足够的实力`};
-    if(p>=20&&p<=21&&b)return{bid:'2NT',exp:`【强均型】${p}点均型(4333/4432/5332)，开叫2NT表示20-21点均型牌，比1NT更强`};
+    if(p>=20&&p<=21&&b)return{bid:'2NT',exp:`【强均型】${p}点均型(${sh})，开叫2NT表示20-21点均型牌，比1NT更强`};
 
-    // 1NT
-    if(p>=15&&p<=17&&b)return{bid:'1NT',exp:`【均型开叫】${p}点均型(4333/4432/5332)，开叫1NT表示15-17点均型牌，是非常精确的叫品`};
+    // 1NT - 包括半均型5张低花
+    if(p>=15&&p<=17&&b)return{bid:'1NT',exp:`【均型开叫】${p}点均型(${sh})，开叫1NT表示15-17点均型牌，是非常精确的叫品`};
+    if(p>=15&&p<=17&&sh==='5-3-3-2'&&(l.d===5||l.c===5)&&l.s<=3&&l.h<=3)return{bid:'1NT',exp:`【半均型1NT】${p}点5332牌型有5张低花但无5张高花，开叫1NT比1m更准确地描述牌力范围`};
 
     // 5-5双高花
-    if(l.s>=5&&l.h>=5)return{bid:'1♠',exp:`【双高花5-5】${p}点有${l.s}张♠和${l.h}张♥，两套5张以上时先叫高级花色(♠)！再叫时叫♥可以经济地显示两套。如果先叫1♥再叫2♠，同伴回♥需要到3阶，不经济`};
+    if(l.s>=5&&l.h>=5)return{bid:'1♠',exp:`【双高花5-5】${p}点有${l.s}张♠和${l.h}张♥，两套5张以上时先叫高级花色(♠)！再叫时叫♥可以经济地显示两套`};
 
     // 单独5张高花
-    if(l.s>=5&&l.s>l.h)return{bid:'1♠',exp:`【5张高花】${p}点有${l.s}张♠，5张以上高花优先开叫。高花做将牌只需4-4配合就很好`};
-    if(l.h>=5)return{bid:'1♥',exp:`【5张高花】${p}点有${l.h}张♥，5张以上高花优先开叫。高花做将牌只需4-4配合就很好`};
+    if(l.s>=5&&l.s>l.h)return{bid:'1♠',exp:`【5张高花】${p}点有${l.s}张♠，5张以上高花优先开叫`};
+    if(l.h>=5)return{bid:'1♥',exp:`【5张高花】${p}点有${l.h}张♥，5张以上高花优先开叫`};
+
+    // 低花处理：5-4低花先开长的
+    if(l.d>=5&&l.c>=4)return{bid:'1♦',exp:`【5-4低花】${p}点有${l.d}张♦和${l.c}张♣，低花5-4先开较长的♦`};
+    if(l.c>=5&&l.d>=4)return{bid:'1♣',exp:`【5-4低花】${p}点有${l.c}张♣和${l.d}张♦，低花5-4先开较长的♣`};
+    if(l.c>=5)return{bid:'1♣',exp:`【5张♣】${p}点有${l.c}张♣，开叫1♣`};
+    if(l.d>=5)return{bid:'1♦',exp:`【5张♦】${p}点有${l.d}张♦，开叫1♦`};
 
     // 4张套处理
-    if(l.d>=4&&l.c>=4)return{bid:'1♦',exp:`【双低花4-4】${p}点有4张♦和4张♣，两门低花都是4张时开叫1♦！这样同伴应叫2♣时你可以Pass或加叫`};
+    if(l.d>=4&&l.c>=4)return{bid:'1♦',exp:`【双低花4-4】${p}点有4张♦和4张♣，两门低花都是4张时开叫1♦`};
     if(l.d>=4)return{bid:'1♦',exp:`【4张低花】${p}点有${l.d}张♦，没有5张高花时叫最长的低花`};
     return{bid:'1♣',exp:`【开叫1♣】${p}点，没有5张高花也没有4张♦，开叫1♣作为等待性叫品。1♣可能只有3张甚至2张`};
 }
 
 function judgeResp(h,pb) {
-    const p=hcp(h), l=lens(h), b=bal(shape(h));
+    const p=hcp(h), l=lens(h), b=bal(shape(h)), sh=shape(h);
     if(pb==='1♥') {
-        if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点，应叫需要6+点。同伴开叫1♥表示12-21点5+张♥，你的点数太少无法有效应叫`};
-        if(l.s>=4)return{bid:'1♠',exp:`【新花色优先】${p}点有${l.s}张♠。应叫1阶新花色只需6+点，先报告4张♠寻找可能的4-4♠配合，优先于支持♥`};
-        if(l.h>=4&&p>=13)return{bid:'4♥',exp:`【直接进局】${p}点+${l.h}张♥支持！13+点加同伴12+点至少25点，有8+张♥配合，直接跳叫4♥进局`};
-        if(l.h>=4&&p>=10)return{bid:'3♥',exp:`【邀请进局】${p}点+${l.h}张♥支持。10-12点是邀请区间，3♥告诉同伴"我有好支持，如果你是高限请上4♥"`};
-        if(l.h>=3)return{bid:'2♥',exp:`【简单加叫】${p}点+${l.h}张♥支持。6-9点简单加叫2♥，表示有3+张支持但点力有限`};
-        return{bid:'1NT',exp:`【无配合应叫】${p}点但只有${l.h}张♥。1NT是等待叫，表示6-9点没有4张♠也没有3张♥支持`};
+        if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点，应叫需要6+点。同伴开叫1♥表示12-21点5+张♥`};
+        // 跳移叫(Jump Shift) - 17+点好5+张套
+        if(p>=17&&l.s>=5)return{bid:'2♠',exp:`【跳移叫】${p}点有${l.s}张好♠！17+点5+张套跳叫2♠，逼叫到局，显示独立的好♠套和强大牌力`};
+        if(l.s>=4&&p<17)return{bid:'1♠',exp:`【新花色优先】${p}点有${l.s}张♠。应叫1阶新花色只需6+点，先报告4张♠寻找可能的4-4♠配合`};
+        if(l.h>=4&&p>=13)return{bid:'4♥',exp:`【直接进局】${p}点+${l.h}张♥支持！13+点加同伴12+点至少25点，直接叫4♥`};
+        if(l.h>=4&&p>=10)return{bid:'3♥',exp:`【限制性加叫】${p}点+${l.h}张♥支持。10-12点邀请进局，3♥告诉同伴"有好支持，高限请上4♥"`};
+        if(l.h>=3)return{bid:'2♥',exp:`【简单加叫】${p}点+${l.h}张♥支持。6-9点简单加叫2♥，有3+张支持但点力有限`};
+        if(p>=10&&b)return{bid:'2NT',exp:`【均型邀请】${p}点均型无♥支持无♠可叫。2NT=10-12点均型，邀请3NT`};
+        return{bid:'1NT',exp:`【逼叫1NT】${p}点但只有${l.h}张♥。1NT是半逼叫(6-12点)，无4♠无3♥支持`};
     }
     if(pb==='1♠') {
         if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点，应叫需要6+点`};
+        if(p>=17&&l.h>=5)return{bid:'3♥',exp:`【跳移叫】${p}点有${l.h}张好♥！17+点跳叫3♥显示强牌好套，逼叫到局`};
         if(l.s>=4&&p>=13)return{bid:'4♠',exp:`【直接进局】${p}点+${l.s}张♠！13+点够局，有4张♠配合直接叫4♠`};
-        if(l.s>=4&&p>=10)return{bid:'3♠',exp:`【邀请进局】${p}点+${l.s}张♠支持。10-12点邀请，让同伴决定`};
-        if(l.s>=3)return{bid:'2♠',exp:`【简单加叫】${p}点+${l.s}张♠支持。6-9点加叫2♠表示有支持但点力有限`};
-        return{bid:'1NT',exp:`【无配合应叫】${p}点但只有${l.s}张♠不够支持，叫1NT等同伴再叫`};
+        if(l.s>=4&&p>=10)return{bid:'3♠',exp:`【限制性加叫】${p}点+${l.s}张♠支持。10-12点邀请进局`};
+        if(l.s>=3)return{bid:'2♠',exp:`【简单加叫】${p}点+${l.s}张♠支持。6-9点加叫2♠`};
+        if(l.h>=4&&p>=6)return{bid:'2♥',exp:`【新花色】${p}点有${l.h}张♥，叫2♥是新花色(逼叫一轮)。在1♠后叫2♥不需要跳叫`};
+        if(p>=10&&b)return{bid:'2NT',exp:`【均型邀请】${p}点均型无♠支持。2NT=10-12点均型`};
+        return{bid:'1NT',exp:`【逼叫1NT】${p}点但只有${l.s}张♠不够支持，半逼叫1NT(6-12点)`};
     }
     if(pb==='1♣'||pb==='1♦') {
-        if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点不够应叫。低花开叫后应叫也需6+点`};
-        if(l.h>=4&&l.h>=l.s)return{bid:'1♥',exp:`【报告高花】${p}点有${l.h}张♥。优先在1阶报告4张高花！高花局只需10墩(4♥/4♠)，低花局需11墩(5♣/5♦)`};
+        if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点不够应叫`};
+        // 跳移叫
+        if(p>=17&&l.s>=5)return{bid:'2♠',exp:`【跳移叫】${p}点有${l.s}张好♠！17+点跳叫2♠，逼叫到局`};
+        if(p>=17&&l.h>=5)return{bid:'2♥',exp:`【跳移叫】${p}点有${l.h}张好♥！17+点跳叫2♥，逼叫到局`};
+        if(l.h>=4&&l.h>=l.s)return{bid:'1♥',exp:`【报告高花】${p}点有${l.h}张♥。优先1阶报告4张高花！高花局只需10墩`};
         if(l.s>=4)return{bid:'1♠',exp:`【报告高花】${p}点有${l.s}张♠。1阶报告♠寻找高花配合`};
-        if(pb==='1♣'&&l.d>=4)return{bid:'1♦',exp:`【报告♦】${p}点有${l.d}张♦，叫1♦显示4+张♦`};
-        return{bid:'1NT',exp:`【无高花】${p}点但没有4张高花，1NT表示6-9点均型无4张高花`};
+        if(pb==='1♣'&&l.d>=4&&p>=6)return{bid:'1♦',exp:`【报告♦】${p}点有${l.d}张♦，叫1♦显示4+张♦`};
+        // 2NT和3NT对低花开叫的应叫
+        if(p>=13&&p<=15&&b)return{bid:'2NT',exp:`【均型进局邀请】${p}点均型无4张高花。2NT=13-15点均型，邀请3NT`};
+        if(p>=16&&b)return{bid:'3NT',exp:`【均型直接进局】${p}点均型无4张高花。3NT=16-17点均型`};
+        return{bid:'1NT',exp:`【无高花】${p}点但没有4张高花，1NT表示6-10点均型无4张高花`};
     }
     if(pb==='1NT') {
+        // Texas转移叫：6+张高花有满贯兴趣
+        if(l.h>=6&&p>=15)return{bid:'4♦',exp:`【Texas转移叫】${p}点有${l.h}张♥！4♦是Texas转移叫，命令同伴叫4♥。用于6+张高花有满贯兴趣，先Texas再探索`};
+        if(l.s>=6&&p>=15)return{bid:'4♥',exp:`【Texas转移叫】${p}点有${l.s}张♠！4♥是Texas转移叫，命令同伴叫4♠。6+张高花有满贯兴趣`};
+        // Jacoby转移叫
         if(l.h>=5)return{bid:'2♦',exp:`【Jacoby转移叫】有${l.h}张♥！叫2♦命令同伴叫2♥。转移叫让强手(1NT开叫方)坐庄，保护大牌`};
         if(l.s>=5)return{bid:'2♥',exp:`【Jacoby转移叫】有${l.s}张♠！叫2♥命令同伴叫2♠。转移叫让强手坐庄`};
+        // Stayman
         if((l.h>=4||l.s>=4)&&p>=8)return{bid:'2♣',exp:`【Stayman问叫】${p}点有4张高花，2♣询问同伴有无4张高花。同伴答2♦=没有，2♥=有♥，2♠=有♠`};
         if(p>=10)return{bid:'3NT',exp:`【直接进局】${p}点+同伴15-17点≥25点，够3NT。没有5张高花直接叫3NT`};
         if(p>=8)return{bid:'2NT',exp:`【邀请进局】${p}点(8-9点)邀请。同伴高限(17点)上3NT，低限Pass`};
-        return{bid:'Pass',exp:`【点力不足】${p}点太弱，同伴15-17点+你的${p}点不够进局，Pass停在1NT`};
+        return{bid:'Pass',exp:`【点力不足】${p}点太弱，同伴15-17+你的${p}点不够进局，Pass停在1NT`};
     }
     return{bid:'Pass',exp:'Pass'};
 }
 
+// 争叫判断：敌方开叫后你决定行动
+function judgeOvercall(h, oppOpen) {
+    const p=hcp(h), l=lens(h), b=bal(shape(h));
+    const oppSuit = suitNameFromSymbol(oppOpen.slice(1));
+    const hasOppStopper = oppSuit!=='nt' && h[oppSuit].some(r=>['A','K','Q'].includes(r));
+    const shortInOpp = oppSuit!=='nt' && h[oppSuit].length<=1;
+
+    // 1NT争叫：15-18均型有止张
+    if(p>=15&&p<=18&&b&&hasOppStopper)return{bid:'1NT',exp:`【1NT争叫】${p}点均型有${oppOpen.slice(1)}止张！1NT争叫表示15-18点均型，对手花色有止张。比开叫的1NT(15-17)稍宽`};
+
+    // 技术性加倍(Takeout Double)：12+点，对手花色短，支持其他花色
+    if(p>=12&&shortInOpp) {
+        const unbid = S.filter(s=>s!==oppSuit);
+        const support = unbid.filter(s=>h[s].length>=3).length;
+        if(support>=2)return{bid:'X',exp:`【技术性加倍】${p}点${oppOpen.slice(1)}短(${h[oppSuit].length}张)，支持其余花色。技术性加倍要求：12+点+对手花色短+其他花色有支持`};
+    }
+
+    // Michaels扣叫：5-5两套
+    if(oppOpen==='1♣'||oppOpen==='1♦') {
+        if(l.s>=5&&l.h>=5&&(p<=10||p>=16))return{bid:'2'+oppOpen.slice(1),exp:`【Michaels扣叫】${p}点有${l.s}张♠和${l.h}张♥！扣叫对手花色表示5-5双高花。${p<=10?'弱牌(5-10点)':'强牌(16+点)'}两可`};
+    }
+    if(oppOpen==='1♥') {
+        if(l.s>=5&&(l.d>=5||l.c>=5)&&(p<=10||p>=16))return{bid:'2♥',exp:`【Michaels扣叫】${p}点有5张♠+5张低花！2♥扣叫表示♠+低花5-5`};
+    }
+    if(oppOpen==='1♠') {
+        if(l.h>=5&&(l.d>=5||l.c>=5)&&(p<=10||p>=16))return{bid:'2♠',exp:`【Michaels扣叫】${p}点有5张♥+5张低花！2♠扣叫表示♥+低花5-5`};
+    }
+
+    // Unusual 2NT：5-5两最低未叫花色
+    if(oppOpen==='1♥'||oppOpen==='1♠') {
+        if(l.d>=5&&l.c>=5&&(p<=10||p>=16))return{bid:'2NT',exp:`【非常规2NT】${p}点有${l.d}张♦和${l.c}张♣！2NT表示两低花5-5。${p<=10?'弱牌':'强牌'}均可使用`};
+    }
+
+    // 直接争叫
+    if(p>=8&&p<=16) {
+        const oppLevel = parseInt(oppOpen[0]);
+        if(oppLevel===1) {
+            if(l.s>=5&&oppSuit!=='spades')return{bid:(oppOpen.includes('♠')?'2':'1')+'♠',exp:`【1阶争叫】${p}点有${l.s}张好♠。1阶争叫需8-16点5+张好套`};
+            if(l.h>=5&&oppSuit!=='hearts'&&!oppOpen.includes('♠'))return{bid:'1♥',exp:`【1阶争叫】${p}点有${l.h}张好♥。1阶争叫需8-16点5+张好套`};
+            if(l.h>=5&&oppSuit!=='hearts'&&oppOpen.includes('♠'))return{bid:'2♥',exp:`【2阶争叫】${p}点有${l.h}张好♥。2阶争叫需10-16点5+张好套，比1阶争叫要求更高`};
+        }
+        if(p>=10) {
+            if(l.d>=5&&oppSuit!=='diamonds')return{bid:'2♦',exp:`【2阶争叫】${p}点有${l.d}张♦。2阶争叫需10-16点5+张好套`};
+            if(l.c>=5&&oppSuit!=='clubs')return{bid:'2♣',exp:`【2阶争叫】${p}点有${l.c}张♣。2阶争叫需10-16点5+张好套`};
+        }
+    }
+
+    // 弱于争叫门槛
+    if(p<8)return{bid:'Pass',exp:`【点力不足】只有${p}点，争叫需要8+点(1阶)或10+点(2阶)，否则容易被加倍惩罚`};
+    return{bid:'Pass',exp:`【暂时Pass】${p}点但没有好的5+张套争叫，也不适合加倍。Pass等待机会`};
+}
+
 function judgeComp(h,pb,ob) {
     const p=hcp(h), l=lens(h);
-    if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点。竞争叫牌中也需要6+点才能行动，否则容易被加倍惩罚`};
-    if(pb==='1♥'&&l.s===4&&!ob.includes('♠'))return{bid:'X',exp:`【负加倍】${p}点有4张♠！同伴开1♥后敌方争叫，你的加倍(X)是"负加倍"，表示有4张♠但点力不够直接叫♠。不是惩罚性的！`};
-    if(pb==='1♠'&&l.h===4)return{bid:'X',exp:`【负加倍】${p}点有4张♥！同伴开1♠后敌方争叫，负加倍表示有4张♥。这让同伴知道你的牌型`};
-    if((pb==='1♣'||pb==='1♦')&&(l.h>=4||l.s>=4))return{bid:'X',exp:`【负加倍】${p}点有4张高花！同伴开低花后敌方争叫，负加倍表示你有4张高花，询问同伴是否有高花配合`};
-    if(pb.includes('♥')&&l.h>=3)return{bid:'2♥',exp:`【竞争支持】${p}点+${l.h}张♥支持。在竞争中用简单加叫支持同伴，抢占叫牌空间`};
-    if(pb.includes('♠')&&l.s>=3)return{bid:'2♠',exp:`【竞争支持】${p}点+${l.s}张♠支持。竞争中加叫支持同伴的花色`};
-    return{bid:'Pass',exp:`【暂时Pass】${p}点但没有好的叫品。在竞争中没有配合也没有好套时先Pass，等待机会`};
+    if(p<6)return{bid:'Pass',exp:`【点力不足】只有${p}点。竞争叫牌中也需要6+点才能行动`};
+
+    // 负加倍：同伴开叫后敌方争叫，你的X表示特定牌型
+    if(pb==='1♥'&&ob.includes('♠')&&l.s<4&&(l.d>=4||l.c>=4)&&p>=8)return{bid:'X',exp:`【负加倍】${p}点！同伴开1♥敌方叫♠，负加倍表示有低花牌型和一定点力(8+点)，没有4张♠`};
+    if(pb==='1♥'&&!ob.includes('♠')&&l.s>=4&&p>=6)return{bid:'X',exp:`【负加倍】${p}点有${l.s}张♠！同伴开1♥后敌方争叫，负加倍表示有4张♠。不是惩罚性的！`};
+    if(pb==='1♠'&&l.h>=4&&p>=6)return{bid:'X',exp:`【负加倍】${p}点有${l.h}张♥！同伴开1♠后敌方争叫，负加倍表示有4张♥`};
+    if((pb==='1♣'||pb==='1♦')&&(l.h>=4||l.s>=4)&&p>=6)return{bid:'X',exp:`【负加倍】${p}点有4张高花！同伴开低花后敌方争叫，负加倍表示有4张高花`};
+
+    // 竞争性加叫 vs 限制性加叫
+    if(pb.includes('♥')&&l.h>=3) {
+        if(l.h>=4&&p>=10)return{bid:'3♥',exp:`【限制性加叫】${p}点有${l.h}张♥！在竞争中跳叫3♥=10-12点4+张支持，区别于竞争性2♥`};
+        return{bid:'2♥',exp:`【竞争性加叫】${p}点+${l.h}张♥支持。竞争中加叫2♥=6-9点，抢占叫牌空间`};
+    }
+    if(pb.includes('♠')&&l.s>=3) {
+        if(l.s>=4&&p>=10)return{bid:'3♠',exp:`【限制性加叫】${p}点有${l.s}张♠！竞争中跳叫3♠=10-12点4+张支持`};
+        return{bid:'2♠',exp:`【竞争性加叫】${p}点+${l.s}张♠支持。竞争中加叫支持同伴`};
+    }
+    return{bid:'Pass',exp:`【暂时Pass】${p}点但没有好的叫品。竞争中没有配合也没有好套时先Pass`};
 }
 
 // 敌方加倍后的应对（XX再加倍场景）
@@ -1344,13 +1463,13 @@ function judgeRebid(h, myOpen, partnerResp) {
 
     // 同伴加叫了你的高花
     if(myOpen === '1♥' && partnerResp === '2♥') {
-        if(p >= 16) return {bid: '3♥', exp: `【邀请进局】${p}点是高限开叫(16-18点)，同伴加叫2♥(6-9点)，你有额外实力应该邀请进局叫3♥`};
         if(p >= 19) return {bid: '4♥', exp: `【直接进局】${p}点超强！即使同伴是低限(6点)，合计也有25+点，直接叫4♥`};
+        if(p >= 16) return {bid: '3♥', exp: `【邀请进局】${p}点是高限开叫(16-18点)，同伴加叫2♥(6-9点)，你有额外实力应该邀请进局叫3♥`};
         return {bid: 'Pass', exp: `【停在部分定约】${p}点是低限开叫(12-15点)，同伴2♥表示6-9点，合计最多24点不够进局，Pass停在2♥`};
     }
     if(myOpen === '1♠' && partnerResp === '2♠') {
-        if(p >= 16) return {bid: '3♠', exp: `【邀请进局】${p}点高限，邀请同伴进局`};
         if(p >= 19) return {bid: '4♠', exp: `【直接进局】${p}点超强，直接进局`};
+        if(p >= 16) return {bid: '3♠', exp: `【邀请进局】${p}点高限，邀请同伴进局`};
         return {bid: 'Pass', exp: `【停在部分定约】${p}点低限，Pass停在2♠`};
     }
 
@@ -1378,22 +1497,31 @@ function judgeRebid(h, myOpen, partnerResp) {
 
     // 同伴应叫新花色（如1♥-1♠）
     if(myOpen === '1♥' && partnerResp === '1♠') {
+        if(l.s >= 4 && p >= 16) return {bid: '3♠', exp: `【跳叫支持】${p}点高限有${l.s}张♠！跳叫3♠=16-18点4张支持，邀请进局`};
         if(l.s >= 4) return {bid: '2♠', exp: `【支持同伴】${p}点有${l.s}张♠支持！找到4-4配合，加叫2♠`};
-        if(p >= 15 && b) return {bid: '1NT', exp: `【均型再叫】${p}点均型，叫1NT表示15-17点均型（有些同伴已知）`};
-        if(l.h >= 6) return {bid: '2♥', exp: `【再叫原套】${p}点有${l.h}张♥，再叫2♥显示6+张套`};
+        // 逆叫(Reverse)：在更高花色2阶再叫=16+点
+        if(l.d >= 4 && p >= 16) return {bid: '2♦', exp: `【逆叫】${p}点高限有${l.d}张♦！逆叫2♦(比开叫♥低的花色在2阶叫)表示16+点，逼叫一轮`};
+        if(p >= 18 && b) return {bid: '2NT', exp: `【跳叫2NT】${p}点均型高限(18-19点)，2NT显示均型强牌`};
+        if(p >= 16 && l.h >= 6) return {bid: '3♥', exp: `【跳叫再叫】${p}点有${l.h}张♥！跳叫3♥=16-18点6+张♥，强再叫`};
+        if(l.h >= 6) return {bid: '2♥', exp: `【再叫原套】${p}点有${l.h}张♥，再叫2♥显示6+张套(12-15点)`};
         if(l.d >= 4) return {bid: '2♦', exp: `【第二套】${p}点有${l.d}张♦，叫2♦显示4+张第二套`};
         if(l.c >= 4) return {bid: '2♣', exp: `【第二套】${p}点有${l.c}张♣，叫2♣显示4+张第二套`};
-        return {bid: '1NT', exp: `【等待性再叫】${p}点无好的再叫，叫1NT等待`};
+        if(b) return {bid: '1NT', exp: `【均型再叫】${p}点均型(12-14点)，叫1NT显示低限均型`};
+        return {bid: '1NT', exp: `【等待性再叫】${p}点无好的再叫，叫1NT`};
     }
 
-    // 同伴应叫2阶新花色（逼叫）
+    // 同伴应叫2阶新花色（逼叫一轮）
     if(partnerResp === '2♣' || partnerResp === '2♦') {
         const respSuit = partnerResp === '2♣' ? 'clubs' : 'diamonds';
+        if(h[respSuit].length >= 4 && p >= 16) return {bid: partnerResp.replace('2','3'), exp: `【跳叫支持】${p}点高限有${h[respSuit].length}张${partnerResp[1]}支持`};
         if(h[respSuit].length >= 4) return {bid: partnerResp.replace('2','3'), exp: `【支持同伴】${p}点有${h[respSuit].length}张${partnerResp[1]}支持，加叫`};
-        if(myOpen === '1♥' && l.h >= 6) return {bid: '2♥', exp: `【再叫原套】${p}点有${l.h}张♥，再叫2♥`};
+        if(myOpen === '1♥' && l.h >= 6 && p >= 16) return {bid: '3♥', exp: `【跳叫再叫♥】${p}点高限有${l.h}张♥，跳叫3♥显示16-18点6+张♥`};
+        if(myOpen === '1♥' && l.h >= 6) return {bid: '2♥', exp: `【再叫原套】${p}点有${l.h}张♥，再叫2♥(12-15点6+张)`};
+        if(myOpen === '1♠' && l.s >= 6 && p >= 16) return {bid: '3♠', exp: `【跳叫再叫♠】${p}点高限有${l.s}张♠，跳叫3♠显示16-18点6+张♠`};
         if(myOpen === '1♠' && l.s >= 6) return {bid: '2♠', exp: `【再叫原套】${p}点有${l.s}张♠，再叫2♠`};
-        if(p >= 15 && b) return {bid: '2NT', exp: `【均型再叫】${p}点均型高限，叫2NT`};
-        return {bid: '2NT', exp: `【等待性再叫】${p}点，叫2NT等待`};
+        if(p >= 18 && b) return {bid: '2NT', exp: `【均型高限】${p}点均型(18-19点)，叫2NT`};
+        if(p >= 15 && b) return {bid: '2NT', exp: `【均型再叫】${p}点均型(15-17点)，叫2NT`};
+        return {bid: '2NT', exp: `【等待性再叫】${p}点，叫2NT`};
     }
 
     return {bid: 'Pass', exp: `${p}点，根据情况Pass`};
@@ -1405,57 +1533,152 @@ function judgeSlam(h, partnerBid, partnerPoints) {
     const totalMin = p + partnerPoints;
     const aces = (h.spades.includes('A')?1:0) + (h.hearts.includes('A')?1:0) + (h.diamonds.includes('A')?1:0) + (h.clubs.includes('A')?1:0);
     const kings = (h.spades.includes('K')?1:0) + (h.hearts.includes('K')?1:0) + (h.diamonds.includes('K')?1:0) + (h.clubs.includes('K')?1:0);
+    // 关键牌(Key Cards)用于RKCB: 4个A + 将牌K
+    const keyCards = (trumpSuit) => {
+        let kc = aces;
+        if(trumpSuit && h[trumpSuit].includes('K')) kc++;
+        return kc;
+    };
 
     // 同伴开叫2NT (20-21点)
     if(partnerBid === '2NT') {
         if(p >= 15) return {bid: '6NT', exp: `【直叫小满贯】同伴2NT=20-21点，你${p}点，合计${totalMin}+点足够小满贯，直接叫6NT`};
-        if(p >= 12 && aces >= 2) return {bid: '4NT', exp: `【量化邀请】${p}点+${aces}个A，叫4NT量化邀请满贯。同伴高限(21点)上6NT，低限Pass`};
-        if(p >= 11) return {bid: '4NT', exp: `【量化邀请】${p}点在邀请区间，叫4NT量化邀请`};
-        if(p >= 4 && l.h >= 5) return {bid: '3♦', exp: `【转移叫】有${l.h}张♥，叫3♦转移到♥，之后可以进一步探索`};
+        if(p >= 12 && aces >= 2) return {bid: '4NT', exp: `【量化4NT】${p}点+${aces}个A。注意：对NT开叫叫4NT是量化邀请(不是Blackwood！)。同伴高限上6NT，低限Pass`};
+        if(p >= 11) return {bid: '4NT', exp: `【量化邀请】${p}点叫4NT量化邀请。对NT开叫4NT=量化(非Blackwood)`};
+        if(p >= 4 && l.h >= 5) return {bid: '3♦', exp: `【转移叫】有${l.h}张♥，叫3♦转移到♥。2NT后3♦/3♥仍然是转移叫`};
         if(p >= 4 && l.s >= 5) return {bid: '3♥', exp: `【转移叫】有${l.s}张♠，叫3♥转移到♠`};
-        return {bid: '3NT', exp: `【止叫进局】${p}点不够满贯，叫3NT进局即可`};
+        return {bid: '3NT', exp: `【止叫进局】${p}点不够满贯，叫3NT`};
     }
 
-    // 同伴开叫1NT (15-17点)
+    // 同伴开叫1NT (15-17点) - Gerber(4♣)问A而非4NT
     if(partnerBid === '1NT') {
+        if(p >= 19 && aces >= 3) return {bid: '5NT', exp: `【大满贯邀请】${p}点+${aces}个A，叫5NT邀请大满贯。同伴有额外实力上7NT`};
         if(p >= 17) return {bid: '6NT', exp: `【直叫小满贯】同伴1NT=15-17点，你${p}点，合计32-34点够小满贯`};
-        if(p >= 15) return {bid: '4NT', exp: `【量化邀请】${p}点叫4NT量化邀请满贯`};
-        if(p >= 19 && aces >= 3) return {bid: '5NT', exp: `【大满贯邀请】${p}点+${aces}个A，叫5NT邀请大满贯`};
+        if(p >= 16 && aces >= 2) return {bid: '4♣', exp: `【Gerber问A】${p}点！对NT开叫用4♣(Gerber)问A(不是4NT！)。4NT对NT是量化邀请。Gerber答：4♦=0/4A, 4♥=1A, 4♠=2A, 4NT=3A`};
+        if(p >= 15) return {bid: '4NT', exp: `【量化4NT】${p}点叫4NT量化邀请满贯。注意：对NT开叫4NT是量化(邀请性)，不是Blackwood！同伴高限上6NT`};
         return {bid: '3NT', exp: `【进局】${p}点够进局但不够满贯`};
     }
 
-    // 同伴开叫高花并你有好支持
+    // 同伴开叫高花并你有好支持 - 使用RKCB(1430)
     if(partnerBid === '1♠' && l.s >= 4) {
-        if(p >= 17 && aces >= 2) return {bid: '4NT', exp: `【Blackwood问A】${p}点+${l.s}张♠支持+${aces}个A，叫4NT(Blackwood)问同伴有几个A`};
-        if(p >= 13) return {bid: '2NT', exp: `【Jacoby 2NT】${p}点+4张♠支持，叫2NT是Jacoby约定叫，显示进局实力的支持`};
+        const kc = keyCards('spades');
+        if(p >= 17 && aces >= 2) return {bid: '4NT', exp: `【RKCB问关键牌】${p}点+${l.s}张♠支持！4NT是Roman Key Card Blackwood(1430)。5个关键牌=4个A+♠K。答：5♣=1/4个，5♦=0/3个，5♥=2个无♠Q，5♠=2个有♠Q`};
+        if(p >= 14) {
+            // 扣叫探索
+            if(h.clubs.includes('A'))return{bid:'4♣',exp:`【扣叫♣A】${p}点有♣控制！在♠配合确认后，扣叫4♣显示♣A控制，探索满贯。扣叫是低于game的控制显示`};
+            if(h.diamonds.includes('A'))return{bid:'4♦',exp:`【扣叫♦A】${p}点有♦控制！扣叫4♦显示♦A，探索满贯`};
+        }
+        if(p >= 13) return {bid: '2NT', exp: `【Jacoby 2NT】${p}点+${l.s}张♠支持，2NT是Jacoby约定叫，显示进局+实力的♠支持`};
         return {bid: '4♠', exp: `【直接进局】${p}点有支持但不够满贯探索`};
     }
     if(partnerBid === '1♥' && l.h >= 4) {
-        if(p >= 17 && aces >= 2) return {bid: '4NT', exp: `【Blackwood问A】${p}点+${l.h}张♥支持+${aces}个A，叫4NT问A探索满贯`};
-        if(p >= 13) return {bid: '2NT', exp: `【Jacoby 2NT】${p}点+4张♥支持，Jacoby 2NT显示强支持`};
+        const kc = keyCards('hearts');
+        if(p >= 17 && aces >= 2) return {bid: '4NT', exp: `【RKCB问关键牌】${p}点+${l.h}张♥支持！4NT=RKCB(1430)。5♣=1/4关键牌，5♦=0/3，5♥=2无♥Q，5♠=2有♥Q`};
+        if(p >= 14) {
+            if(h.clubs.includes('A'))return{bid:'4♣',exp:`【扣叫♣A】${p}点有♣控制！扣叫探索满贯`};
+            if(h.diamonds.includes('A'))return{bid:'4♦',exp:`【扣叫♦A】${p}点有♦控制！扣叫探索满贯`};
+        }
+        if(p >= 13) return {bid: '2NT', exp: `【Jacoby 2NT】${p}点+${l.h}张♥支持，Jacoby 2NT显示强支持`};
         return {bid: '4♥', exp: `【直接进局】${p}点有支持但不够满贯`};
     }
 
-    // 同伴回答Blackwood 4NT后
-    if(partnerBid === '5♦') { // 同伴有1个A
-        if(aces >= 2) return {bid: '6♠', exp: `【叫小满贯】同伴5♦=1个A，你有${aces}个A，共有3个A，可以叫6♠小满贯`};
-        return {bid: '5♠', exp: `【止叫】同伴只有1个A，你有${aces}个A，缺2个A不能叫满贯`};
+    // 同伴回答RKCB 4NT后（1430约定）
+    if(partnerBid === '5♣') { // 同伴有1或4个关键牌
+        if(aces >= 2) return {bid: '6♠', exp: `【叫小满贯】同伴5♣=1/4个关键牌(1430约定)。你有${aces}个A，总关键牌足够，叫6♠`};
+        return {bid: '5♠', exp: `【止叫】同伴5♣=1/4关键牌，结合你的${aces}个A可能缺少关键牌，止叫5♠`};
     }
-    if(partnerBid === '5♥') { // 同伴有2个A
-        if(aces >= 1) return {bid: '6♠', exp: `【叫小满贯】同伴5♥=2个A，你有${aces}个A，共有3+个A，叫6♠`};
-        if(aces >= 2 && kings >= 2) return {bid: '5NT', exp: `【问K】有足够的A，叫5NT继续问K探索大满贯`};
+    if(partnerBid === '5♦') { // 同伴有0或3个关键牌
+        if(aces >= 2) return {bid: '6♠', exp: `【叫小满贯】同伴5♦=0/3关键牌(1430约定)。可能有3个！你有${aces}个A，合计足够，叫6♠`};
+        return {bid: '5♠', exp: `【止叫】同伴5♦=0/3关键牌，你有${aces}个A，缺关键牌不能叫满贯`};
+    }
+    if(partnerBid === '5♥') { // 同伴有2个关键牌，无将牌Q
+        if(aces >= 1) return {bid: '6♠', exp: `【叫小满贯】同伴5♥=2关键牌无将牌Q(RKCB)。你有${aces}个A，总共3+关键牌，叫6♠`};
+        if(aces >= 2 && kings >= 2) return {bid: '5NT', exp: `【问K】有足够关键牌，叫5NT继续问K探索大满贯`};
         return {bid: '6♠', exp: `【小满贯】叫6♠小满贯`};
     }
+    if(partnerBid === '5♠') { // 同伴有2个关键牌+将牌Q
+        if(aces >= 2) return {bid: '5NT', exp: `【探索大满贯】同伴5♠=2关键牌+将牌Q！叫5NT问K，探索7♠大满贯`};
+        return {bid: '6♠', exp: `【小满贯】同伴5♠=2关键牌+Q，叫6♠`};
+    }
 
-    return {bid: '4NT', exp: `${p}点考虑满贯时，叫4NT(Blackwood)询问A的数量`};
+    return {bid: '4NT', exp: `${p}点考虑满贯时，叫4NT(RKCB)询问关键牌数量。1430约定：5♣=1/4，5♦=0/3，5♥=2无Q，5♠=2有Q`};
+}
+
+// 高级约定叫判断：Stayman, Jacoby等
+function judgeAdvConvention(h, convType, partnerBid) {
+    const p = hcp(h), l = lens(h), sh = shape(h), b = bal(sh);
+
+    if(convType === 'stayman') {
+        // Stayman问叫：同伴开叫1NT/2NT，你有4张高花且点力足够
+        if(partnerBid === '1NT') {
+            if(p < 8) return {bid: 'Pass', exp: `【点力不足】${p}点不够使用Stayman。Stayman需要8+点且有4张高花`};
+            if(l.h >= 4 || l.s >= 4) {
+                if(p >= 10) return {bid: '2♣', exp: `【Stayman问叫】${p}点有4张高花！2♣询问同伴是否有4张高花。同伴答2♦=没有，2♥=有♥，2♠=有♠`};
+                return {bid: '2♣', exp: `【Stayman问叫】${p}点有4张高花，用2♣询问配合`};
+            }
+            if(l.h >= 5) return {bid: '2♦', exp: `【Jacoby转移叫】有${l.h}张♥，2♦命令同伴叫2♥`};
+            if(l.s >= 5) return {bid: '2♥', exp: `【Jacoby转移叫】有${l.s}张♠，2♥命令同伴叫2♠`};
+            if(p >= 10) return {bid: '3NT', exp: `【直接进局】${p}点均型无4张高花，直接叫3NT`};
+            return {bid: '2NT', exp: `【邀请进局】${p}点邀请，让同伴决定`};
+        }
+        if(partnerBid === '2NT') {
+            if(l.h >= 4 || l.s >= 4) {
+                if(p >= 5) return {bid: '3♣', exp: `【Stayman问叫】${p}点有4张高花！对2NT用3♣询问高花配合`};
+            }
+            if(l.h >= 5) return {bid: '3♦', exp: `【转移叫】有${l.h}张♥，3♦转移到♥`};
+            if(l.s >= 5) return {bid: '3♥', exp: `【转移叫】有${l.s}张♠，3♥转移到♠`};
+            if(p >= 12) return {bid: '4NT', exp: `【量化邀请】${p}点叫4NT邀请满贯`};
+            return {bid: '3NT', exp: `【进局】${p}点直接叫3NT进局`};
+        }
+    }
+
+    if(convType === 'jacoby') {
+        // Jacoby转移叫：同伴开叫1NT，你有5张高花
+        if(partnerBid === '1NT') {
+            if(l.h >= 5) {
+                if(p >= 10) return {bid: '2♦', exp: `【Jacoby转移叫】有${l.h}张♥！2♦命令同伴叫2♥，然后你可以进局或探索满贯`};
+                return {bid: '2♦', exp: `【Jacoby转移叫】有${l.h}张♥，2♦转移到♥。转移叫让强手坐庄`};
+            }
+            if(l.s >= 5) {
+                if(p >= 10) return {bid: '2♥', exp: `【Jacoby转移叫】有${l.s}张♠！2♥命令同伴叫2♠，然后你可以进局或探索`};
+                return {bid: '2♥', exp: `【Jacoby转移叫】有${l.s}张♠，2♥转移到♠。转移叫让强手坐庄`};
+            }
+            if(l.h >= 4 || l.s >= 4) return {bid: '2♣', exp: `【Stayman】有4张高花，用2♣询问`};
+            return {bid: '3NT', exp: `【直接进局】没有5张高花，直接叫3NT`};
+        }
+    }
+
+    if(convType === 'jacoby2nt') {
+        // Jacoby 2NT：同伴开叫高花，你有13+点和4张支持
+        if(partnerBid === '1♠') {
+            if(l.s >= 4 && p >= 13) return {bid: '2NT', exp: `【Jacoby 2NT】${p}点+${l.s}张♠支持！2NT是Jacoby约定叫，表示进局实力的高花支持，逼叫到局`};
+            if(l.s >= 4 && p >= 10) return {bid: '3♠', exp: `【邀请进局】${p}点+${l.s}张♠支持，跳加叫3♠邀请`};
+            if(l.s >= 3) return {bid: '2♠', exp: `【简单加叫】${p}点+${l.s}张♠支持，加叫2♠`};
+            return {bid: '1NT', exp: `【无支持】只有${l.s}张♠不够支持，叫1NT等待`};
+        }
+        if(partnerBid === '1♥') {
+            if(l.h >= 4 && p >= 13) return {bid: '2NT', exp: `【Jacoby 2NT】${p}点+${l.h}张♥支持！2NT是Jacoby约定叫，表示进局实力的高花支持，逼叫到局`};
+            if(l.h >= 4 && p >= 10) return {bid: '3♥', exp: `【邀请进局】${p}点+${l.h}张♥支持，跳加叫3♥邀请`};
+            if(l.h >= 3) return {bid: '2♥', exp: `【简单加叫】${p}点+${l.h}张♥支持，加叫2♥`};
+            if(l.s >= 4) return {bid: '1♠', exp: `【报告♠】${p}点有${l.s}张♠，先叫1♠`};
+            return {bid: '1NT', exp: `【无支持】只有${l.h}张♥不够支持，叫1NT等待`};
+        }
+    }
+
+    // 默认回退
+    return {bid: 'Pass', exp: `${p}点，暂时Pass`};
 }
 
 // ============ UI ============
 function showPage(p) {
     document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    const navBtns = document.querySelectorAll('.nav-btn');
+    navBtns.forEach(b=>b.classList.remove('active'));
     document.getElementById('page-'+p).classList.add('active');
-    event.target.classList.add('active');
+    const pageNames = ['plan','bid','play','defend','battle'];
+    const idx = pageNames.indexOf(p);
+    if(idx >= 0 && navBtns[idx]) navBtns[idx].classList.add('active');
+    if(p==='plan')renderWeakAreas();
     if(p==='bid')newFreeBid();
     if(p==='play')newPlayQ();
     if(p==='defend')newDefQ();
@@ -1540,6 +1763,7 @@ function updateUI() {
     }).join('');
 
     selDy(selDay);
+    renderWeakAreas();
 }
 
 function selPh(p) { selPhase=p; selWeek=1; const first=LESSONS.find(l=>l.phase===p); selDay=first?first.day:1; updateUI(); }
@@ -1599,7 +1823,15 @@ function genQ() {
 
     const les = LESSONS[qz.day-1];
     let type = les.type;
-    if(type==='mixed'||type==='adv'||type==='slam'||type==='rebid'||type==='play'||type==='def') type = ['open','resp','comp'][Math.floor(Math.random()*3)];
+    // play和def类型使用混合基础题（做庄和防守有专门的练习页面）
+    if(type==='play'||type==='def') type = ['open','resp','comp'][Math.floor(Math.random()*3)];
+    // mixed类型混合所有叫牌练习
+    if(type==='mixed') type = ['open','resp','comp','rebid','slam'][Math.floor(Math.random()*5)];
+    // 自适应：20%概率从薄弱环节出题
+    const bidTypes = ['open','resp','comp','rebid','slam','overcall'];
+    const weak = getWeakCategories().filter(c => bidTypes.includes(c.cat));
+    if(weak.length > 0 && Math.random() < 0.2) type = weak[0].cat;
+    currentCategory = type === 'adv' ? 'convention' : type;
 
     hand = deal();
     const seq = document.getElementById('qz-seq');
@@ -1618,7 +1850,7 @@ function genQ() {
         document.getElementById('qz-label').textContent = '你的手牌';
         answer = judgeResp(hand, pb);
         renderBids('qz-bids', ['Pass'].concat(getValidBidsAfter(pb)));
-    } else {
+    } else if(type==='comp') {
         seq.classList.add('show');
         const pbs = ['1♣','1♦','1♥','1♠','1NT'];
         const pb = pbs[Math.floor(Math.random()*pbs.length)];
@@ -1648,6 +1880,81 @@ function genQ() {
             answer = judgeComp(hand, pb, ob);
             renderBids('qz-bids', ['Pass','X'].concat(getValidBidsAfter(ob)));
         }
+    } else if(type==='rebid') {
+        // 再叫练习：你开叫后同伴应叫，你该如何再叫
+        seq.classList.add('show');
+        const scenarios = [
+            {myOpen: '1♥', resp: '2♥', label: '你开叫1♥，同伴加叫2♥'},
+            {myOpen: '1♥', resp: '3♥', label: '你开叫1♥，同伴跳加叫3♥(邀请)'},
+            {myOpen: '1♥', resp: '1♠', label: '你开叫1♥，同伴应叫1♠'},
+            {myOpen: '1♥', resp: '1NT', label: '你开叫1♥，同伴应叫1NT'},
+            {myOpen: '1♥', resp: '2♣', label: '你开叫1♥，同伴应叫2♣'},
+            {myOpen: '1♠', resp: '2♠', label: '你开叫1♠，同伴加叫2♠'},
+            {myOpen: '1♠', resp: '3♠', label: '你开叫1♠，同伴跳加叫3♠(邀请)'},
+            {myOpen: '1♠', resp: '1NT', label: '你开叫1♠，同伴应叫1NT'},
+            {myOpen: '1♠', resp: '2♣', label: '你开叫1♠，同伴应叫2♣'},
+            {myOpen: '1♠', resp: '2♦', label: '你开叫1♠，同伴应叫2♦'},
+        ];
+        const scenario = scenarios[Math.floor(Math.random()*scenarios.length)];
+        ctx = {myOpen: scenario.myOpen, partnerResp: scenario.resp};
+        document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="you">${colorBid(scenario.myOpen)}</td><td class="opp">Pass</td><td class="partner">${colorBid(scenario.resp)}</td></tr><tr><td class="opp">Pass</td><td class="q">?</td><td></td><td></td></tr>`;
+        document.getElementById('qz-label').textContent = scenario.label + '，你该如何再叫？';
+        answer = judgeRebid(hand, scenario.myOpen, scenario.resp);
+        renderBids('qz-bids', ['Pass'].concat(getValidBidsAfter(scenario.resp)));
+    } else if(type==='slam') {
+        // 满贯探索练习
+        seq.classList.add('show');
+        const scenarios = [
+            {partnerBid: '1NT', partnerPts: 16, label: '同伴开叫1NT(15-17点)'},
+            {partnerBid: '2NT', partnerPts: 20, label: '同伴开叫2NT(20-21点)'},
+            {partnerBid: '1♠', partnerPts: 15, label: '同伴开叫1♠，你有支持'},
+            {partnerBid: '1♥', partnerPts: 15, label: '同伴开叫1♥，你有支持'},
+            {partnerBid: '5♦', partnerPts: 14, label: '你问4NT后同伴答5♦(1个A)'},
+            {partnerBid: '5♥', partnerPts: 14, label: '你问4NT后同伴答5♥(2个A)'},
+        ];
+        const scenario = scenarios[Math.floor(Math.random()*scenarios.length)];
+        ctx = {partnerBid: scenario.partnerBid, partnerPts: scenario.partnerPts};
+
+        if(scenario.partnerBid === '5♦' || scenario.partnerBid === '5♥') {
+            document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid('1♠')}</td><td class="opp">Pass</td><td class="you">4NT</td></tr><tr><td class="opp">Pass</td><td class="partner">${colorBid(scenario.partnerBid)}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        } else {
+            document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(scenario.partnerBid)}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        }
+        document.getElementById('qz-label').textContent = scenario.label + '，探索满贯';
+        answer = judgeSlam(hand, scenario.partnerBid, scenario.partnerPts);
+        renderBids('qz-bids', ['Pass','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT','5♣','5♦','5♥','5♠','5NT','6♣','6♦','6♥','6♠','6NT','7NT']);
+    } else if(type==='overcall') {
+        // 争叫练习(从薄弱环节自适应)
+        seq.classList.add('show');
+        const oppOpens = ['1♣','1♦','1♥','1♠'];
+        const oppOpen = oppOpens[Math.floor(Math.random()*oppOpens.length)];
+        ctx = {oppOpen};
+        document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">${colorBid(oppOpen)}</td><td class="partner">-</td><td class="opp">-</td><td class="q">?</td></tr>`;
+        document.getElementById('qz-label').textContent = `敌方开叫${oppOpen}，你怎么行动？`;
+        answer = judgeOvercall(hand, oppOpen);
+        renderBids('qz-bids', ['Pass','X'].concat(getValidBidsAfter(oppOpen)));
+    } else if(type==='adv') {
+        // 高级约定叫练习：Stayman, Jacoby等
+        seq.classList.add('show');
+        const scenarios = [
+            {type: 'stayman', pb: '1NT', label: '同伴开叫1NT，你有4张高花'},
+            {type: 'jacoby', pb: '1NT', label: '同伴开叫1NT，你有5张高花'},
+            {type: 'stayman', pb: '2NT', label: '同伴开叫2NT，你有4张高花'},
+            {type: 'jacoby2nt', pb: '1♠', label: '同伴开叫1♠，你有强支持'},
+            {type: 'jacoby2nt', pb: '1♥', label: '同伴开叫1♥，你有强支持'},
+        ];
+        const scenario = scenarios[Math.floor(Math.random()*scenarios.length)];
+        ctx = {advType: scenario.type, pb: scenario.pb};
+        document.getElementById('qz-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(scenario.pb)}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        document.getElementById('qz-label').textContent = scenario.label;
+        answer = judgeAdvConvention(hand, scenario.type, scenario.pb);
+        renderBids('qz-bids', ['Pass','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT']);
+    } else {
+        // 默认：开叫练习
+        seq.classList.remove('show');
+        document.getElementById('qz-label').textContent = '你的手牌';
+        answer = judgeOpen(hand);
+        renderBids('qz-bids', ['Pass','1♣','1♦','1♥','1♠','1NT','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT']);
     }
 
     dispHand('qz', hand);
@@ -1704,6 +2011,29 @@ function renderBids(id, bids) {
     }).join('');
 }
 
+// 生成详细的推理链反馈
+function buildDetailedFeedback(h, answer, userBid, isCorrect) {
+    const p = hcp(h), sh = shape(h), l = lens(h), b = bal(sh);
+    let html = '';
+
+    if(isCorrect) {
+        html += `<div style="margin-bottom:8px;padding:8px;background:var(--bg-input);border-radius:6px;font-size:13px;line-height:1.8;">`;
+        html += `<b style="color:var(--accent);">【分析】</b>${p}点 · ${sh}${b?' · 均型':''} · `;
+        html += `<span class="s">♠${l.s}</span> <span class="h">♥${l.h}</span> <span class="d">♦${l.d}</span> <span class="c">♣${l.c}</span><br>`;
+        html += answer.exp;
+        html += `</div>`;
+    } else {
+        html += `<div style="margin-bottom:8px;padding:8px;background:var(--bg-input);border-radius:6px;font-size:13px;line-height:1.8;">`;
+        html += `<b style="color:var(--accent-red);">【你的选择】</b>${colorBid(userBid)}<br>`;
+        html += `<b style="color:var(--accent-green);">【正确答案】</b>${colorBid(answer.bid)}<br>`;
+        html += `<b style="color:var(--accent);">【手牌分析】</b>${p}点 · ${sh}${b?' · 均型':''} · `;
+        html += `<span class="s">♠${l.s}</span> <span class="h">♥${l.h}</span> <span class="d">♦${l.d}</span> <span class="c">♣${l.c}</span><br>`;
+        html += `<b style="color:var(--accent);">【推理过程】</b>${answer.exp}`;
+        html += `</div>`;
+    }
+    return html;
+}
+
 function pickQ(b) {
     if(qz.ans) return;
     qz.ans = true;
@@ -1712,7 +2042,6 @@ function pickQ(b) {
     const ok = b === answer.bid;
     if(ok) qz.ok++;
     else {
-        // 记录错题用于复盘
         qz.mistakes.push({
             num: qz.cur,
             hand: {spades:[...hand.spades], hearts:[...hand.hearts], diamonds:[...hand.diamonds], clubs:[...hand.clubs]},
@@ -1728,11 +2057,14 @@ function pickQ(b) {
     updateStreak(ok);
     if(ok && streak.count >= 2) spawnConfetti(streak.count * 5);
 
+    // 记录弱项
+    trackWeakArea(ok);
+
     const res = document.getElementById('qz-res');
     res.className = 'result-box ' + (ok?'correct':'wrong');
     const cheer = getCheer(ok);
     document.getElementById('qz-res-t').innerHTML = (ok ? '✓ ' : '✗ ') + cheer + getStreakHTML();
-    document.getElementById('qz-res-p').innerHTML = (ok?'':(`正确答案：<b>${answer.bid}</b><br>`)) + answer.exp;
+    document.getElementById('qz-res-p').innerHTML = buildDetailedFeedback(hand, answer, b, ok);
 
     updQz();
     document.getElementById('qz-next').style.display = 'block';
@@ -1829,8 +2161,73 @@ function closeModal() {
 }
 
 function exitQuiz() { if(confirm('退出?')) closeModal(); }
-function resetAll() { if(confirm('重置所有进度?')) { prog={done:[],cur:1,stars:0}; save(); selPhase=1;selWeek=1;selDay=1; updateUI(); } }
+function resetAll() { if(confirm('重置所有进度?')) { prog={done:[],cur:1,stars:0}; save(); weakData={}; localStorage.removeItem('bridge-weak'); selPhase=1;selWeek=1;selDay=1; updateUI(); } }
 function save() { localStorage.setItem('bc200', JSON.stringify(prog)); }
+
+// ============ 薄弱环节追踪 ============
+const WEAK_LABELS = {
+    open: '开叫', resp: '应叫', comp: '竞叫', rebid: '再叫', slam: '满贯',
+    overcall: '争叫', convention: '约定叫', practical: '实战',
+    play_finesse: '飞牌', play_establish: '建立', play_ruff: '将吃', play_squeeze: '挤牌',
+    def_lead: '首攻', def_signal: '信号', def_plan: '防守计划'
+};
+let currentCategory = 'open';
+let weakData = JSON.parse(localStorage.getItem('bridge-weak')) || {};
+
+function trackWeakArea(correct) {
+    const cat = currentCategory;
+    if (!cat) return;
+    if (!weakData[cat]) weakData[cat] = { right: 0, total: 0 };
+    weakData[cat].total++;
+    if (correct) weakData[cat].right++;
+    localStorage.setItem('bridge-weak', JSON.stringify(weakData));
+}
+
+function getWeakCategories() {
+    // Return categories sorted by accuracy (worst first), minimum 5 attempts
+    return Object.keys(weakData)
+        .filter(k => weakData[k].total >= 3)
+        .map(k => ({ cat: k, right: weakData[k].right, total: weakData[k].total, pct: Math.round(weakData[k].right / weakData[k].total * 100) }))
+        .sort((a, b) => a.pct - b.pct);
+}
+
+function renderWeakAreas() {
+    const card = document.getElementById('weak-card');
+    const container = document.getElementById('weak-bars');
+    if (!card || !container) return;
+    const cats = getWeakCategories();
+    if (cats.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    // Show top 6 categories
+    const show = cats.slice(0, 6);
+    container.innerHTML = show.map(c => {
+        const color = c.pct >= 80 ? 'var(--accent-green)' : c.pct >= 50 ? 'var(--accent)' : 'var(--accent-red)';
+        return `<div class="weak-row"><span class="weak-label">${WEAK_LABELS[c.cat] || c.cat}</span><div class="weak-bar-bg"><div class="weak-bar" style="width:${c.pct}%;background:${color}"></div></div><span class="weak-pct">${c.pct}%</span></div>`;
+    }).join('');
+}
+
+function drillWeakArea() {
+    const cats = getWeakCategories();
+    if (cats.length === 0) return;
+    const worst = cats[0];
+    // Determine which page and mode to open
+    const bidCats = ['open','resp','comp','rebid','slam','overcall','convention','practical'];
+    const playCats = ['play_finesse','play_establish','play_ruff','play_squeeze'];
+    const defCats = ['def_lead','def_signal','def_plan'];
+    if (bidCats.includes(worst.cat)) {
+        document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+        document.getElementById('page-bid').classList.add('active');
+        setBidMode(worst.cat);
+    } else if (playCats.includes(worst.cat)) {
+        document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+        document.getElementById('page-play').classList.add('active');
+        setPlayMode(worst.cat.replace('play_',''));
+    } else if (defCats.includes(worst.cat)) {
+        document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+        document.getElementById('page-defend').classList.add('active');
+        setDefMode(worst.cat.replace('def_',''));
+    }
+}
 
 // ============ 实战叫牌场景 ============
 function generatePracticalScenario(h) {
@@ -1970,6 +2367,116 @@ function generatePracticalScenario(h) {
         bids: ['Pass','X','1♠','1NT','2♣','2♦']
     });
 
+    // 场景9: New Minor Forcing 1♦-1♠-1NT-2♣-?
+    scenarios.push({
+        name: 'NMF新低花逼叫',
+        seqHtml: `<tr><td class="opp">-</td><td class="partner">1♦</td><td class="opp">Pass</td><td class="you">1♠</td></tr>
+                  <tr><td class="opp">Pass</td><td class="partner">1NT</td><td class="opp">Pass</td><td class="q">?</td></tr>`,
+        label: '同伴开1♦，你应1♠，同伴再叫1NT(12-14均型)',
+        judge: () => {
+            if(p >= 11 && l.s >= 5) return {bid:'2♣', exp:`【NMF新低花逼叫】${p}点有${l.s}张♠！1♦-1♠-1NT后叫2♣(新低花)是人为逼叫，询问同伴是否有3张♠支持。根据NMF约定叫`};
+            if(p >= 11 && l.h >= 4) return {bid:'2♣', exp:`【NMF新低花逼叫】${p}点有4张♥！叫2♣询问同伴是否有4张♥。NMF可以找到隐藏的高花配合`};
+            if(p >= 13 && b) return {bid:'3NT', exp:`【直接进局】${p}点均型，合计25+点够3NT`};
+            if(p >= 11 && b) return {bid:'2NT', exp:`【邀请进局】${p}点邀请3NT`};
+            return {bid:'Pass', exp:`【止叫】${p}点不够邀请，Pass停在1NT`};
+        },
+        bids: ['Pass','2♣','2♦','2♥','2♠','2NT','3NT']
+    });
+
+    // 场景10: 第四花色逼叫 1♥-1♠-2♣-2♦-?
+    scenarios.push({
+        name: '第四花色逼叫',
+        seqHtml: `<tr><td class="opp">-</td><td class="partner">1♥</td><td class="opp">Pass</td><td class="you">1♠</td></tr>
+                  <tr><td class="opp">Pass</td><td class="partner">2♣</td><td class="opp">Pass</td><td class="q">?</td></tr>`,
+        label: '同伴开1♥再叫2♣(两套牌型)，你该怎么继续',
+        judge: () => {
+            if(p >= 11 && l.d < 4) return {bid:'2♦', exp:`【第四花色逼叫】${p}点！叫2♦(第四花色)是人为逼叫到局，不表示有♦！是询问同伴更多信息(根据Fourth Suit Forcing约定)`};
+            if(l.h >= 3 && p >= 10) return {bid:'3♥', exp:`【迟到的♥支持】${p}点有${l.h}张♥，支持同伴的第一套♥`};
+            if(l.c >= 4 && p >= 10) return {bid:'3♣', exp:`【支持♣】${p}点有${l.c}张♣支持`};
+            if(l.s >= 6 && p >= 10) return {bid:'2♠', exp:`【再叫♠】${p}点有${l.s}张♠，再叫2♠显示6+张`};
+            if(p >= 6 && l.h >= 2) return {bid:'2♥', exp:`【偏好♥】${p}点给同伴偏好回到♥`};
+            return {bid:'Pass', exp:`【Pass】${p}点无好叫品，Pass停在2♣`};
+        },
+        bids: ['Pass','2♦','2♥','2♠','2NT','3♣','3♥','3NT']
+    });
+
+    // 场景11: 对付敌方阻击开叫 (3♥)-?
+    scenarios.push({
+        name: '对付阻击',
+        seqHtml: `<tr><td class="opp">3♥</td><td class="partner">Pass</td><td class="opp">Pass</td><td class="q">?</td></tr>`,
+        label: '东家3♥阻击开叫，同伴Pass，西家Pass，轮到你',
+        judge: () => {
+            if(p >= 16 && l.s >= 5) return {bid:'3♠', exp:`【争叫♠】${p}点有${l.s}张♠！在3阶争叫需要更强的牌(16+点好套)。对付阻击要谨慎`};
+            if(p >= 15 && l.h <= 1 && (l.s >= 4||l.d >= 4||l.c >= 4)) return {bid:'X', exp:`【技术性加倍】${p}点♥短！加倍表示有开叫实力和其他花色支持`};
+            if(p >= 16 && b && h.hearts.filter(c=>['A','K','Q'].includes(c)).length >= 2) return {bid:'3NT', exp:`【直接3NT】${p}点均型有♥止张！对付3阶阻击直接叫3NT`};
+            return {bid:'Pass', exp:`【Pass】${p}点，对付阻击叫牌需要好牌，暂时Pass`};
+        },
+        bids: ['Pass','X','3♠','3NT','4♣','4♦','4♠']
+    });
+
+    // 场景12: 牺牲决策 1♠-2♥-4♠-?
+    scenarios.push({
+        name: '牺牲决策',
+        seqHtml: `<tr><td class="opp">-</td><td class="partner">1♠</td><td class="opp">2♥</td><td class="you">4♠</td></tr>
+                  <tr><td class="opp">5♥</td><td class="partner">Pass</td><td class="opp">Pass</td><td class="q">?</td></tr>`,
+        label: '你方叫4♠后敌方叫5♥，是否继续竞争或让他们打',
+        judge: () => {
+            if(l.s >= 4 && p >= 10) return {bid:'5♠', exp:`【牺牲叫5♠】${p}点有${l.s}张♠支持！叫5♠牺牲。即使宕1-2，也比让敌方做成5♥划算(如果他们能做成的话)`};
+            if(p >= 14 && l.h <= 1) return {bid:'X', exp:`【惩罚加倍】${p}点♥短！加倍5♥惩罚。你认为敌方做不成5♥`};
+            return {bid:'Pass', exp:`【Pass】${p}点，让同伴决定是否加倍或牺牲。"5阶定律"：不确定时Pass给同伴决定权`};
+        },
+        bids: ['Pass','X','5♠']
+    });
+
+    // 场景13: Lebensohl序列 1NT-(2♥)-?
+    scenarios.push({
+        name: 'Lebensohl',
+        seqHtml: `<tr><td class="opp">-</td><td class="partner">1NT</td><td class="opp">2♥</td><td class="q">?</td></tr>`,
+        label: '同伴开1NT，敌方争叫2♥',
+        judge: () => {
+            if(l.s >= 5 && p >= 8) return {bid:'2♠', exp:`【直接叫2♠】${p}点有${l.s}张♠！在1NT被争叫后，直接叫2♠=竞争性(8+点好套)。根据Lebensohl约定`};
+            if(p >= 10 && b && h.hearts.filter(c=>['A','K','Q'].includes(c)).length >= 1) return {bid:'3NT', exp:`【直接3NT】${p}点有♥止张！直接叫3NT进局(Lebensohl中直接3NT表示有止张)`};
+            if(l.s >= 5 && p < 8) return {bid:'2NT', exp:`【Lebensohl 2NT】${p}点弱牌有${l.s}张♠！2NT是puppet(傀儡叫)要求同伴叫3♣，之后你再叫♠是弱牌`};
+            if(p >= 8) return {bid:'X', exp:`【惩罚性加倍】${p}点！1NT被争叫后的X是惩罚性的(不是负加倍)`};
+            return {bid:'Pass', exp:`【Pass】${p}点不够行动`};
+        },
+        bids: ['Pass','X','2♠','2NT','3♣','3♦','3♠','3NT']
+    });
+
+    // 场景14: 同伴争叫后的应叫 (1♦)-1♠-(Pass)-?
+    scenarios.push({
+        name: '应叫同伴的争叫',
+        seqHtml: `<tr><td class="opp">1♦</td><td class="partner">1♠</td><td class="opp">Pass</td><td class="q">?</td></tr>`,
+        label: '敌方开1♦，同伴争叫1♠(8-16点5+张♠)',
+        judge: () => {
+            if(l.s >= 3 && p >= 10) return {bid:'3♠', exp:`【邀请加叫】${p}点有${l.s}张♠支持！同伴争叫后3♠是邀请进局(10-12点)`};
+            if(l.s >= 4 && p >= 13) return {bid:'4♠', exp:`【直接进局】${p}点有${l.s}张♠！直接叫4♠进局`};
+            if(l.s >= 3 && p >= 6) return {bid:'2♠', exp:`【简单加叫】${p}点有${l.s}张♠支持。6-9点简单加叫`};
+            if(p >= 11 && b && h.diamonds.filter(c=>['A','K','Q'].includes(c)).length >= 1) return {bid:'2♦', exp:`【扣叫敌方花色】${p}点有♦止张！扣叫2♦表示进局实力(11+点)，问同伴NT有无止张`};
+            if(p >= 8 && l.h >= 5) return {bid:'2♥', exp:`【新花色】${p}点有${l.h}张♥，叫2♥(新花色不逼叫，只是建设性)`};
+            if(p >= 10 && b) return {bid:'1NT', exp:`【均型应叫】${p}点均型有♦止张，叫1NT`};
+            return {bid:'Pass', exp:`【Pass】${p}点不够行动或无好叫品`};
+        },
+        bids: ['Pass','1NT','2♣','2♦','2♥','2♠','3♠','4♠']
+    });
+
+    // 场景15: 应叫同伴的技术性加倍 (1♥)-X-(Pass)-?
+    scenarios.push({
+        name: '应叫技术性加倍',
+        seqHtml: `<tr><td class="opp">1♥</td><td class="partner">X</td><td class="opp">Pass</td><td class="q">?</td></tr>`,
+        label: '敌方开1♥，同伴技术性加倍(12+点短♥)',
+        judge: () => {
+            if(l.s >= 4 && p >= 10) return {bid:'2♠', exp:`【跳叫应叫】${p}点有${l.s}张♠！对技术性加倍跳叫2♠=10-12点好4+张♠(邀请进局)`};
+            if(l.s >= 4 && p >= 13) return {bid:'4♠', exp:`【直接进局】${p}点有${l.s}张♠！直接叫4♠`};
+            if(l.s >= 4) return {bid:'1♠', exp:`【最低应叫】${p}点有${l.s}张♠。对技术性加倍叫1♠(0-9点，可能很弱)`};
+            if(l.d >= 4 && p < 10) return {bid:'2♦', exp:`【应叫♦】${p}点有${l.d}张♦，叫最低阶可选花色`};
+            if(l.c >= 4 && p < 10) return {bid:'2♣', exp:`【应叫♣】${p}点有${l.c}张♣，叫最低阶可选花色`};
+            if(p >= 10 && b && h.hearts.filter(c=>['A','K','Q'].includes(c)).length >= 1) return {bid:'1NT', exp:`【有♥止张】${p}点均型有♥止张！叫1NT(10-12点有止张)`};
+            return {bid:'1♠', exp:`【被迫应叫】${p}点，对技术性加倍必须应叫(除非右手敌方已叫)，叫最便宜的4张花色`};
+        },
+        bids: ['1♠','1NT','2♣','2♦','2♠','3♣','3♦','3♠','4♠']
+    });
+
     // 随机选择一个场景
     const chosen = scenarios[Math.floor(Math.random() * scenarios.length)];
     return {
@@ -1983,15 +2490,17 @@ function generatePracticalScenario(h) {
 // ============ 自由叫牌 ============
 function setBidMode(m) {
     freeBid.mode = m;
+    const modeMap = {open:'开叫',resp:'应叫',comp:'竞叫',rebid:'再叫',slam:'满贯',overcall:'争叫',convention:'约定叫',practical:'实战'};
     document.querySelectorAll('#page-bid .week-btn').forEach(b => {
         b.classList.remove('active');
-        if((m==='open'&&b.textContent==='开叫')||(m==='resp'&&b.textContent==='应叫')||(m==='comp'&&b.textContent==='竞叫')||(m==='rebid'&&b.textContent==='再叫')||(m==='slam'&&b.textContent==='满贯')||(m==='practical'&&b.textContent==='实战')) b.classList.add('active');
+        if(b.textContent===modeMap[m]) b.classList.add('active');
     });
     newFreeBid();
 }
 
 function newFreeBid() {
     hand = deal();
+    currentCategory = freeBid.mode;
     document.getElementById('fb-res').className = 'result-box';
     const seq = document.getElementById('fb-seq');
 
@@ -2071,6 +2580,32 @@ function newFreeBid() {
             answer = judgeComp(hand,pb,ob);
             renderBids('fb-bids', ['Pass','X'].concat(getValidBidsAfter(ob)));
         }
+    } else if(freeBid.mode==='overcall') {
+        // 争叫练习：敌方开叫后你决定行动
+        seq.classList.add('show');
+        const oppOpens = ['1♣','1♦','1♥','1♠'];
+        const oppOpen = oppOpens[Math.floor(Math.random()*oppOpens.length)];
+        ctx = {oppOpen};
+        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">${colorBid(oppOpen)}</td><td class="partner">-</td><td class="opp">-</td><td class="q">?</td></tr>`;
+        document.getElementById('fb-label').textContent = `敌方开叫${oppOpen}，你怎么行动？`;
+        answer = judgeOvercall(hand, oppOpen);
+        renderBids('fb-bids', ['Pass','X'].concat(getValidBidsAfter(oppOpen)));
+    } else if(freeBid.mode==='convention') {
+        // 约定叫练习：Stayman流程、Jacoby流程、Blackwood应答等
+        seq.classList.add('show');
+        const scenarios = [
+            {type:'stayman', pb:'1NT', label:'同伴开1NT，你有4张高花'},
+            {type:'jacoby', pb:'1NT', label:'同伴开1NT，你有5张高花'},
+            {type:'stayman', pb:'2NT', label:'同伴开2NT，你有4张高花'},
+            {type:'jacoby2nt', pb:'1♠', label:'同伴开1♠，你有强支持'},
+            {type:'jacoby2nt', pb:'1♥', label:'同伴开1♥，你有强支持'},
+        ];
+        const scenario = scenarios[Math.floor(Math.random()*scenarios.length)];
+        ctx = {advType: scenario.type, pb: scenario.pb};
+        document.getElementById('fb-seq-body').innerHTML = `<tr><td class="opp">-</td><td class="partner">${colorBid(scenario.pb)}</td><td class="opp">Pass</td><td class="q">?</td></tr>`;
+        document.getElementById('fb-label').textContent = scenario.label;
+        answer = judgeAdvConvention(hand, scenario.type, scenario.pb);
+        renderBids('fb-bids', ['Pass','2♣','2♦','2♥','2♠','2NT','3♣','3♦','3♥','3♠','3NT','4♣','4♦','4♥','4♠','4NT']);
     } else if(freeBid.mode==='practical') {
         // 实战多轮叫牌场景
         seq.classList.add('show');
@@ -2100,56 +2635,121 @@ function pickF(b) {
     document.getElementById('fb-ok').textContent = freeBid.ok;
     document.getElementById('fb-tot').textContent = freeBid.tot;
 
+    // 记录弱项
+    trackWeakArea(ok);
+
     const res = document.getElementById('fb-res');
     res.className = 'result-box ' + (ok?'correct':'wrong');
     const cheer = getCheer(ok);
     document.getElementById('fb-res-t').innerHTML = (ok ? '✓ ' : '✗ ') + cheer + getStreakHTML();
-    document.getElementById('fb-res-p').innerHTML = (ok?'':(`正确：<b>${answer.bid}</b><br>`)) + answer.exp;
+    document.getElementById('fb-res-p').innerHTML = buildDetailedFeedback(hand, answer, b, ok);
 }
 
-// ============ 做庄练习 ============
+// ============ 做庄练习 (程序化生成) ============
 let playMode = 'finesse';
-const PLAY_QS = {
-    finesse: [
-        {q:'♦花色：明手AQ，如何打这门？', opts:['先打A','从庄家出小牌飞牌','打Q'], ans:1, exp:'从庄家出小牌向明手飞，如果K在西家可以赢两墩',
-         n:'♠ K Q x x<br>♥ x x x<br>♦ A Q x<br>♣ x x x', s:'♠ A J x x x<br>♥ A K<br>♦ x x x<br>♣ A x x', need:10, contract:'4♠'},
-        {q:'♠花色：你有AQJ，如何最大化赢墩？', opts:['打A','反复飞牌','直接打QJ'], ans:1, exp:'反复飞牌，如果K在东家可以赢全部5墩将牌',
-         n:'♠ x x x x<br>♥ x x x<br>♦ A x x<br>♣ K x x', s:'♠ A Q J x x<br>♥ A K<br>♦ K x x<br>♣ A x x', need:10, contract:'4♠'},
-        {q:'♣花色：明手KQ对敌方A，什么时候打？', opts:['立即打','等对手打A','投出这门'], ans:1, exp:'等对手打A，之后KQ都是赢墩',
-         n:'♠ K Q x x<br>♥ x x x<br>♦ A x x<br>♣ K Q x', s:'♠ A J x x x<br>♥ A K<br>♦ K x x<br>♣ x x x', need:10, contract:'4♠'},
-    ],
-    establish: [
-        {q:'♦花色：你有AKxxx对xxx，如何建立长套？', opts:['打AK后放小','先打小牌','只打AK'], ans:0, exp:'打AK清大牌，放小建立长套赢墩',
-         n:'♠ x x<br>♥ K Q x<br>♦ x x x<br>♣ A K x x', s:'♠ A K x<br>♥ A x x<br>♦ A K x x x<br>♣ x x', need:9, contract:'3NT'},
-        {q:'♣花色：如何建立并兑现长套？', opts:['不需要进手','需要多次进手','只需一次进手'], ans:1, exp:'可能需要多次进手来建立和兑现长套',
-         n:'♠ A x<br>♥ x x x<br>♦ K x x<br>♣ A K x x x', s:'♠ K Q x<br>♥ A K x<br>♦ A x x x<br>♣ x x x', need:9, contract:'3NT'},
-    ],
-    ruff: [
-        {q:'明手♦单张，如何利用？', opts:['将吃','垫牌','忽略'], ans:0, exp:'用明手的将牌将吃♦，可以多赢一墩',
-         n:'♠ K x x x<br>♥ x x x<br>♦ x<br>♣ A x x x x', s:'♠ A Q J x x<br>♥ A K<br>♦ x x x x<br>♣ K x', need:10, contract:'4♠'},
-        {q:'双方都有短套，如何操作？', opts:['交叉将吃','只用明手将吃','只用手上将吃'], ans:0, exp:'交叉将吃：明手将吃♣，手上将吃♦，多赢好几墩',
-         n:'♠ K x x x<br>♥ x x<br>♦ A K x x x<br>♣ x', s:'♠ A Q J x x<br>♥ A K x<br>♦ x<br>♣ x x x x', need:11, contract:'5♠'},
-    ],
-    squeeze: [
-        {q:'差一墩完成定约，考虑什么技术？', opts:['继续飞牌','挤牌','放弃'], ans:1, exp:'挤牌通常在差一墩时使用，迫使对手放弃保护',
-         n:'♠ A K<br>♥ A K<br>♦ x x x x x<br>♣ x x x', s:'♠ x x<br>♥ x x<br>♦ A K Q J<br>♣ A K Q J', need:12, contract:'6NT'},
-        {q:'挤牌成功后，对手会怎样？', opts:['被迫放弃保护','可以安全垫牌','没有影响'], ans:0, exp:'被迫在两门牌中放弃一门的保护，让你多赢一墩',
-         n:'♠ A K x<br>♥ A K x<br>♦ x x x<br>♣ x x x', s:'♠ Q J x<br>♥ Q J x<br>♦ A K Q<br>♣ A K Q', need:12, contract:'6NT'},
-    ]
-};
+
+// 生成随机手牌用于做庄练习
+function generatePlayHand(type) {
+    const pick = (arr,n) => { const a=[...arr]; const r=[]; for(let i=0;i<n&&a.length;i++){const j=Math.floor(Math.random()*a.length);r.push(a.splice(j,1)[0]);} return r.sort((a,b)=>R.indexOf(a)-R.indexOf(b)); };
+    const honors = ['A','K','Q','J','T'];
+    const small = ['9','8','7','6','5','4','3','2'];
+    const x = () => small[Math.floor(Math.random()*small.length)];
+
+    if(type==='finesse') {
+        const patterns = [
+            // 简单飞牌 AQ vs K
+            () => {
+                const s1 = pick(small,3), s2 = pick(small.filter(c=>!s1.includes(c)),2);
+                return {q:'♦花色：明手有AQ，庄家有小牌，如何打这门花色？', opts:['先打A再打Q','从庄家出小牌向明手飞Q','直接打Q'], ans:1,
+                    exp:'【简单飞牌】从庄家(没有AQ的手)出小牌向明手(有AQ)飞。如果K在你的左手边(出牌顺序在AQ之前)，飞牌成功，赢得A和Q两墩。成功概率约50%',
+                    n:`♠ K Q ${s1[0]} ${s1[1]}<br>♥ ${x()} ${x()} ${x()}<br>♦ A Q ${s1[2]}<br>♣ ${x()} ${x()} ${x()}`,
+                    s:`♠ A J ${s2[0]} ${s2[1]} ${x()}<br>♥ A K<br>♦ ${x()} ${x()} ${x()}<br>♣ A ${x()} ${x()}`, need:10, contract:'4♠'};
+            },
+            // 双飞 AQJ vs KT
+            () => ({q:'♠花色：你有AQJ，对方有KT，如何最大化赢墩？', opts:['打A清大牌','反复飞牌(从明手出小)','直接打QJ顶打'], ans:1,
+                exp:'【双飞(Repeated Finesse)】从明手反复出小牌飞AQJ。第一次飞Q(如果K在左方，Q赢)；再回明手，第二次飞J。如果KT都在左方，赢3墩。概率约75%(至少赢2墩)',
+                n:`♠ ${x()} ${x()} ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ A ${x()} ${x()}<br>♣ K ${x()} ${x()}`,
+                s:`♠ A Q J ${x()} ${x()}<br>♥ A K<br>♦ K ${x()} ${x()}<br>♣ A ${x()} ${x()}`, need:10, contract:'4♠'}),
+            // 双向飞牌 AJ10 vs KQx
+            () => ({q:'♣花色：明手A10x，庄家KJx，如何决定飞牌方向？', opts:['从庄家出小牌飞明手A10','从明手出小牌飞庄家KJ','根据叫牌和旁证决定方向'], ans:2,
+                exp:'【双向飞牌(Two-Way Finesse)】AJ10对KQx时，Q可能在任何一边。从叫牌信息和已打出的牌中推断Q的位置：如果叫牌显示某家有更多点力，Q更可能在那里。没有信息时概率50/50',
+                n:`♠ K Q ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ A ${x()} ${x()} ${x()}<br>♣ A T ${x()}`,
+                s:`♠ A J ${x()} ${x()} ${x()}<br>♥ A K<br>♦ K ${x()} ${x()}<br>♣ K J ${x()}`, need:10, contract:'4♠'}),
+            // 反飞牌
+            () => ({q:'♥花色：明手Kxx，庄家Axx，你需要两墩♥，怎么打？', opts:['先打A再打K','从庄家出小牌飞明手K','从明手出小牌向庄家A'], ans:1,
+                exp:'【飞牌保进手】从庄家出小牌飞明手K。如果Q在你的左手方，K赢。然后打A赢第二墩。如果先打A再打K会让Q在右方的防守方赢得Q',
+                n:`♠ K Q ${x()} ${x()}<br>♥ K ${x()} ${x()}<br>♦ A ${x()} ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`,
+                s:`♠ A J ${x()} ${x()} ${x()}<br>♥ A ${x()} ${x()}<br>♦ ${x()} ${x()} ${x()}<br>♣ A ${x()} ${x()}`, need:10, contract:'4♠'}),
+        ];
+        return patterns[Math.floor(Math.random()*patterns.length)]();
+    }
+    if(type==='establish') {
+        const patterns = [
+            () => ({q:'♦花色AKxxx对xxx，如何建立长套赢墩？', opts:['打AK后放小牌让对手赢','先打小牌','只打AK然后换花色'], ans:0,
+                exp:'【长套建立(Suit Establishment)】\n① 打AK清除对手大牌\n② 放一墩小牌给对手(Duck)\n③ 对手的♦此时已经打完\n④ 你剩余的♦小牌全部成为赢墩\n需要确保有足够的进手(Entry)回到建立好的长套',
+                n:`♠ ${x()} ${x()}<br>♥ K Q ${x()}<br>♦ ${x()} ${x()} ${x()}<br>♣ A K ${x()} ${x()}`,
+                s:`♠ A K ${x()}<br>♥ A ${x()} ${x()}<br>♦ A K ${x()} ${x()} ${x()}<br>♣ ${x()} ${x()}`, need:9, contract:'3NT'}),
+            () => ({q:'♣AKxxxx对xx，如何建立这门长套？', opts:['打AK然后放小','打A然后反复打小牌','不需要建立，AK够了'], ans:0,
+                exp:'【建立6张套】打AK(希望对手♣是3-2分布)后放小。对手♣打完后，你的3张小♣都是赢墩。关键：需要计算进手(Entry)！建立长套前确保有办法回到这只手',
+                n:`♠ A ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ K ${x()} ${x()}<br>♣ A K ${x()} ${x()} ${x()} ${x()}`,
+                s:`♠ K Q ${x()}<br>♥ A K ${x()}<br>♦ A ${x()} ${x()} ${x()}<br>♣ ${x()} ${x()}`, need:9, contract:'3NT'}),
+            () => ({q:'NT定约中，数赢墩后差2墩，应该如何计划？', opts:['建立长套获取额外赢墩','等对手出错','放弃'], ans:0,
+                exp:'【NT做庄计划】\n① 数确定赢墩(Top Tricks)\n② 差几墩就要找几墩额外赢墩\n③ 优先建立最长的套\n④ 注意保留进手\n⑤ 扣住对手的长套(Hold Up)维持通信控制',
+                n:`♠ ${x()} ${x()} ${x()}<br>♥ A K ${x()}<br>♦ ${x()} ${x()} ${x()} ${x()}<br>♣ K ${x()} ${x()}`,
+                s:`♠ A K Q<br>♥ ${x()} ${x()} ${x()}<br>♦ A K Q<br>♣ A ${x()} ${x()} ${x()}`, need:9, contract:'3NT'}),
+        ];
+        return patterns[Math.floor(Math.random()*patterns.length)]();
+    }
+    if(type==='ruff') {
+        const patterns = [
+            () => ({q:'明手♦只有1张(单张)，庄家♦有4张输牌，如何利用？', opts:['用明手的将牌将吃♦','把♦垫在高花上','忽略♦这门'], ans:0,
+                exp:'【将吃(Ruff)】\n① 先打♦A(如果有)\n② 再出♦小牌\n③ 明手用将牌♠将吃\n④ 每次将吃多赢一墩\n注意：先不要拔将牌！拔将牌会减少明手将吃的机会',
+                n:`♠ K ${x()} ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ ${x()}<br>♣ A ${x()} ${x()} ${x()} ${x()}`,
+                s:`♠ A Q J ${x()} ${x()}<br>♥ A K<br>♦ ${x()} ${x()} ${x()} ${x()}<br>♣ K ${x()}`, need:10, contract:'4♠'}),
+            () => ({q:'双方都有短套(明手♣单张，庄家♦单张)，最佳策略？', opts:['交叉将吃','只用明手将吃','先拔光将牌'], ans:0,
+                exp:'【交叉将吃(Cross-Ruff)】\n① 先兑现旁套大牌(AK)\n② 明手将吃♣，回手\n③ 庄家将吃♦，回明手\n④ 反复将吃，多赢很多墩\n关键：先兑现旁套大牌！否则对手在将吃时垫掉输牌',
+                n:`♠ K ${x()} ${x()} ${x()}<br>♥ ${x()} ${x()}<br>♦ A K ${x()} ${x()} ${x()}<br>♣ ${x()}`,
+                s:`♠ A Q J ${x()} ${x()}<br>♥ A K ${x()}<br>♦ ${x()}<br>♣ ${x()} ${x()} ${x()} ${x()}`, need:11, contract:'5♠'}),
+            () => ({q:'什么时候应该先拔将牌，什么时候先将吃？', opts:['有短套将吃机会时先将吃','总是先拔将牌','随便'], ans:0,
+                exp:'【将牌管理原则】\n先将吃的条件：明手有短套可以将吃\n先拔将牌的条件：没有将吃需求，防止对手将吃你的赢墩\n常见错误：过早拔将牌浪费了明手的将吃机会',
+                n:`♠ K ${x()} ${x()}<br>♥ ${x()} ${x()}<br>♦ A K ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()} ${x()}`,
+                s:`♠ A Q J ${x()} ${x()} ${x()}<br>♥ A K ${x()}<br>♦ ${x()}<br>♣ K ${x()}`, need:10, contract:'4♠'}),
+        ];
+        return patterns[Math.floor(Math.random()*patterns.length)]();
+    }
+    if(type==='squeeze') {
+        const patterns = [
+            () => ({q:'差一墩完成6NT，所有常规技术都试过了，考虑什么？', opts:['继续飞牌碰运气','挤牌(Squeeze)','认输宕一'], ans:1,
+                exp:'【挤牌(Squeeze)原理】\n① 确认：差恰好1墩(Rectify the Count)\n② 找到"威胁牌"：两门花色各有1张威胁牌\n③ 打掉所有其他赢墩\n④ 最后一张赢墩迫使对手"二选一"放弃保护\n⑤ 对手无论垫哪门，你都多赢1墩\n挤牌三要素：Count(差1墩)、Entry(进手)、Menace(威胁牌)',
+                n:`♠ A K<br>♥ A K<br>♦ ${x()} ${x()} ${x()} ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`,
+                s:`♠ ${x()} ${x()}<br>♥ ${x()} ${x()}<br>♦ A K Q J<br>♣ A K Q J`, need:12, contract:'6NT'}),
+            () => ({q:'什么是"纠正墩数"(Rectifying the Count)？', opts:['故意让对手赢一墩来准备挤牌','多赢一墩','和对手交换信息'], ans:0,
+                exp:'【纠正墩数(Rectify the Count)】\n挤牌要求你恰好差1墩。如果你的赢墩够多，需要故意放一墩给对手(Duck)来"纠正墩数"\n这样当你打完所有赢墩时，对手刚好在最后一张牌时被迫做痛苦的选择',
+                n:`♠ A K ${x()}<br>♥ A K ${x()}<br>♦ ${x()} ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`,
+                s:`♠ Q J ${x()}<br>♥ Q J ${x()}<br>♦ A K Q<br>♣ A K Q`, need:12, contract:'6NT'}),
+        ];
+        return patterns[Math.floor(Math.random()*patterns.length)]();
+    }
+    // 默认
+    return {q:'如何计划做庄？', opts:['数赢墩','数输墩','随机打'], ans:0,
+        exp:'NT定约数赢墩，有将定约数输墩',
+        n:`♠ K Q ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ A ${x()} ${x()}<br>♣ K ${x()} ${x()}`,
+        s:`♠ A J ${x()} ${x()} ${x()}<br>♥ A K<br>♦ K ${x()} ${x()}<br>♣ A ${x()} ${x()}`, need:10, contract:'4♠'};
+}
 
 function setPlayMode(m) {
     playMode = m;
+    const modeMap = {finesse:'飞牌',establish:'建立长套',ruff:'将吃',squeeze:'挤牌',entry:'通信',count:'计划'};
     document.querySelectorAll('#page-play .week-btn').forEach(b => {
         b.classList.remove('active');
-        if((m==='finesse'&&b.textContent==='飞牌')||(m==='establish'&&b.textContent==='建立长套')||(m==='ruff'&&b.textContent==='将吃')||(m==='squeeze'&&b.textContent==='挤牌')) b.classList.add('active');
+        if(b.textContent===modeMap[m]) b.classList.add('active');
     });
     newPlayQ();
 }
 
 function newPlayQ() {
-    const qs = PLAY_QS[playMode] || PLAY_QS.finesse;
-    const q = qs[Math.floor(Math.random()*qs.length)];
+    currentCategory = 'play_' + playMode;
+    const q = generatePlayHand(playMode);
 
     document.getElementById('play-contract').textContent = '定约: ' + q.contract + ' 南庄家';
     document.getElementById('play-n').innerHTML = q.n;
@@ -2166,6 +2766,7 @@ function newPlayQ() {
 function pickPlay(i, ans, exp) {
     document.querySelectorAll('#play-opts .play-btn').forEach((b,j) => { b.classList.remove('sel'); if(j===i)b.classList.add('sel'); });
     const ok = i === ans;
+    trackWeakArea(ok);
 
     // 音效和动画
     playSound(ok ? 'correct' : 'wrong');
@@ -2179,41 +2780,95 @@ function pickPlay(i, ans, exp) {
     document.getElementById('play-res-p').textContent = exp;
 }
 
-// ============ 防守练习 ============
+// ============ 防守练习 (程序化生成) ============
 let defMode = 'lead';
-const DEF_QS = {
-    lead: [
-        {q:'对3NT，你有♠KQJxx，首攻什么？', opts:['♠K','♠小牌','♠Q'], ans:0, exp:'首攻K，从连张顶张攻',
-         n:'♠ x x x<br>♥ K Q J<br>♦ A x x x<br>♣ K x x', w:'♠ K Q J x x<br>♥ x x x<br>♦ x x<br>♣ x x x', pos:'西家', contract:'3NT'},
-        {q:'对4♠，你有单张♦，首攻什么？', opts:['单张♦','♣长套','将牌♠'], ans:0, exp:'首攻单张寻求将吃',
-         n:'♠ K x x<br>♥ A x x<br>♦ K Q x x<br>♣ x x x', w:'♠ x x<br>♥ K Q x x<br>♦ x<br>♣ Q J x x x', pos:'西家', contract:'4♠'},
-        {q:'搭档叫过♥，对3NT首攻什么？', opts:['♥','♠自己的长套','♦'], ans:0, exp:'首攻搭档叫过的花色',
-         n:'♠ x x<br>♥ x x<br>♦ A K Q x<br>♣ K Q x x', w:'♠ Q J x x x<br>♥ x x x<br>♦ x x<br>♣ x x x', pos:'西家', contract:'3NT'},
-    ],
-    signal: [
-        {q:'搭档首攻♦A，你有♦Kxx，打什么？', opts:['♦K(鼓励)','♦x(不鼓励)','♦中间牌'], ans:0, exp:'打K鼓励继续，表示有大牌',
-         n:'♠ K Q x<br>♥ A Q x<br>♦ Q J x<br>♣ x x x x', w:'(搭档)', pos:'东家', contract:'3NT', e:'♠ x x x<br>♥ x x x<br>♦ K x x<br>♣ K x x x'},
-        {q:'计数信号中，打高再低表示？', opts:['偶数张','奇数张','有大牌'], ans:0, exp:'高低=偶数张，低高=奇数张',
-         n:'♠ A Q J x<br>♥ K x<br>♦ A x x<br>♣ K x x x', w:'(搭档)', pos:'东家', contract:'4♠', e:'♠ x x<br>♥ x x x x<br>♦ x x x x<br>♣ x x x'},
-    ],
-    plan: [
-        {q:'明手♦有AKQ，你的防守策略？', opts:['攻击其他花色','直接攻♦','放弃'], ans:0, exp:'♦无法击败，寻找其他花色进攻路线',
-         n:'♠ x x<br>♥ x x x<br>♦ A K Q x x<br>♣ K Q x', w:'♠ K Q J x x<br>♥ A x x<br>♦ x x<br>♣ x x x', pos:'西家', contract:'3NT'},
-    ]
-};
+
+function generateDefHand(type) {
+    const x = () => ['9','8','7','6','5','4','3','2'][Math.floor(Math.random()*8)];
+
+    if(type==='lead') {
+        const patterns = [
+            // 对NT首攻：连张顶张
+            () => ({q:'对3NT，你有♠KQJxx，首攻什么？', opts:['♠K(连张顶张)','♠小牌(第四大)','♥转攻其他'], ans:0,
+                exp:'【对NT首攻-连张攻击】\n① 有KQJ连张→攻K(顶张)\n② 连张攻击是最安全的首攻\n③ 攻K后搭档打鼓励信号(高牌=鼓励)→继续攻♠\n④ 目标：建立长套赢墩\n根据"第四大"原则，无连张时攻第四大的牌',
+                n:`♠ ${x()} ${x()} ${x()}<br>♥ K Q J<br>♦ A ${x()} ${x()} ${x()}<br>♣ K ${x()} ${x()}`,
+                w:`♠ K Q J ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`, pos:'西家', contract:'3NT'}),
+            // 对NT首攻：第四大
+            () => ({q:'对3NT，你最长的花色是♠xxxxx，无连张，首攻什么？', opts:['♠第四大的牌','♠最大的牌','♠最小的牌'], ans:0,
+                exp:'【第四大首攻(Fourth Best)】\n① 无连张时攻最长套的第四大\n② 第四大让搭档用"11法则"推断牌型\n③ 11减去首攻的点数=高于首攻的牌在其他三家的总数\n④ 这是对NT最标准的首攻方法',
+                n:`♠ ${x()} ${x()}<br>♥ A Q ${x()}<br>♦ K Q ${x()} ${x()}<br>♣ K ${x()} ${x()}`,
+                w:`♠ ${x()} ${x()} ${x()} ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`, pos:'西家', contract:'3NT'}),
+            // 对有将首攻：单张
+            () => ({q:'对4♠定约，你有♦单张，首攻什么？', opts:['♦单张(寻求将吃)','♥长套','♠将牌'], ans:0,
+                exp:'【对有将首攻-单张攻击】\n① 单张首攻是对有将定约的好策略\n② 目的：搭档赢墩后回打♦，你用将牌将吃\n③ 搭档可以用花色优先信号告诉你回哪门\n④ 注意：首攻搭档叫过的花色也是好选择',
+                n:`♠ K ${x()} ${x()}<br>♥ A ${x()} ${x()}<br>♦ K Q ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`,
+                w:`♠ ${x()} ${x()}<br>♥ K Q ${x()} ${x()}<br>♦ ${x()}<br>♣ Q J ${x()} ${x()} ${x()}`, pos:'西家', contract:'4♠'}),
+            // 攻搭档叫过的花色
+            () => ({q:'搭档叫过♥，对3NT首攻什么？', opts:['♥(搭档叫过的花色)','♠自己的长套','等看明手'], ans:0,
+                exp:'【首攻搭档花色】\n① 搭档叫过的花色=搭档有长套+大牌\n② 首攻搭档花色帮助建立搭档的长套\n③ 即使自己这门花色很少也应该攻\n④ 搭档的花色比自己的长套更容易建立',
+                n:`♠ ${x()} ${x()}<br>♥ ${x()} ${x()}<br>♦ A K Q ${x()}<br>♣ K Q ${x()} ${x()}`,
+                w:`♠ Q J ${x()} ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`, pos:'西家', contract:'3NT'}),
+            // 什么不该攻
+            () => ({q:'对3NT，你有♠Axxx♥Kxxx，不该首攻什么？', opts:['♠A(从不支持的A出)','♥小牌(从K套)','都不该'], ans:0,
+                exp:'【首攻禁忌】\n① 不要攻无支持的A(Unsupported Ace)\n② A首攻对NT几乎永远是错的(除非有AK)\n③ 攻A会释放对手的K/Q\n④ 首攻应该选择安全的花色或连张',
+                n:`♠ ${x()} ${x()} ${x()}<br>♥ Q ${x()} ${x()}<br>♦ A K Q ${x()}<br>♣ K Q ${x()} ${x()}`,
+                w:`♠ A ${x()} ${x()} ${x()}<br>♥ K ${x()} ${x()} ${x()}<br>♦ ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`, pos:'西家', contract:'3NT'}),
+        ];
+        return patterns[Math.floor(Math.random()*patterns.length)]();
+    }
+    if(type==='signal') {
+        const patterns = [
+            () => ({q:'搭档首攻♦A，你有♦Kxx，打什么信号？', opts:['♦K(鼓励-我有大牌！)','♦小牌(不鼓励)','♦中间牌'], ans:0,
+                exp:'【态度信号-鼓励】\n① 搭档首攻A后，你的出牌是态度信号\n② 打高牌(K或大的)=鼓励继续攻此花色\n③ 打小牌=不鼓励，请换花色\n④ 你有K，希望搭档继续攻♦→打K鼓励',
+                n:`♠ K Q ${x()}<br>♥ A Q ${x()}<br>♦ Q J ${x()}<br>♣ ${x()} ${x()} ${x()} ${x()}`,
+                w:'(搭档)', pos:'东家', contract:'3NT', e:`♠ ${x()} ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ K ${x()} ${x()}<br>♣ K ${x()} ${x()} ${x()}`}),
+            () => ({q:'计数信号中，先打高牌再打低牌表示什么？', opts:['偶数张(如2/4张)','奇数张(如3/5张)','有大牌'], ans:0,
+                exp:'【计数信号(Count Signal)】\n① 高-低(先大后小)=偶数张\n② 低-高(先小后大)=奇数张\n③ 计数信号帮助搭档判断庄家的牌型\n④ 通常在庄家打某门花色时使用(不是在搭档首攻时)',
+                n:`♠ A Q J ${x()}<br>♥ K ${x()}<br>♦ A ${x()} ${x()}<br>♣ K ${x()} ${x()} ${x()}`,
+                w:'(搭档)', pos:'东家', contract:'4♠', e:`♠ ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()} ${x()}<br>♦ ${x()} ${x()} ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`}),
+            () => ({q:'花色优先信号中，搭档用什么告诉你回哪门？', opts:['大牌=高花(♥/♠)，小牌=低花(♣/♦)','大牌=♣，小牌=♠','随机'], ans:0,
+                exp:'【花色优先信号(Suit Preference)】\n① 打高牌=请回高级花色(♥或♠)\n② 打低牌=请回低级花色(♣或♦)\n③ 中间牌=没有明确偏好\n④ 通常在明显不需要态度或计数信号时使用',
+                n:`♠ K Q ${x()} ${x()}<br>♥ A Q ${x()}<br>♦ ${x()} ${x()} ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`,
+                w:'(搭档)', pos:'东家', contract:'4♠', e:`♠ ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ ${x()} ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()} ${x()}`}),
+        ];
+        return patterns[Math.floor(Math.random()*patterns.length)]();
+    }
+    if(type==='plan') {
+        const patterns = [
+            () => ({q:'明手♦有AKQ长套，你的防守策略？', opts:['攻击其他花色切断通信','直接攻♦对抗','消极等待'], ans:0,
+                exp:'【防守计划-切断通信】\n① 明手有坚实长套→庄家想兑现那些赢墩\n② 防守策略：攻击进手(Entry)花色！\n③ 如果能在庄家建立通信之前切断明手的进手，长套就无法兑现\n④ 数庄家的赢墩，制定防守计划',
+                n:`♠ ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ A K Q ${x()} ${x()}<br>♣ K Q ${x()}`,
+                w:`♠ K Q J ${x()} ${x()}<br>♥ A ${x()} ${x()}<br>♦ ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`, pos:'西家', contract:'3NT'}),
+            () => ({q:'第三手打牌原则是什么？', opts:['第三手高打(但用最便宜的大牌)','第三手打小牌','第三手总是打最大的'], ans:0,
+                exp:'【第三手高打(Third Hand High)】\n① 搭档首攻后，你是第三手→打高牌帮助赢墩\n② 但是：用"最便宜的大牌"！有QJ时打Q(不是K)\n③ 例外：明手有大牌挡住时，不需要盲目打高\n④ 解封(Unblock)：有时需要打大牌让搭档继续进攻',
+                n:`♠ ${x()} ${x()} ${x()}<br>♥ A Q ${x()}<br>♦ K ${x()} ${x()} ${x()}<br>♣ K ${x()} ${x()} ${x()}`,
+                w:'(搭档)', pos:'东家', contract:'3NT', e:`♠ ${x()} ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ Q J ${x()}<br>♣ ${x()} ${x()} ${x()} ${x()}`}),
+            () => ({q:'防守时如何通过叫牌推断庄家的牌型？', opts:['根据叫牌推断各花色张数和点力','不能推断','只看明手的牌'], ans:0,
+                exp:'【防守计数-从叫牌推断】\n① 庄家叫过的花色→知道长度(1♥开叫=5+♥)\n② 点力范围(1NT=15-17, 弱二=5-10等)\n③ 明手亮牌后：你看到26张牌(你13+明手13)\n④ 40HCP - 你的HCP - 明手HCP = 庄家+搭档的HCP\n⑤ 配合叫牌信息精确推断庄家牌型',
+                n:`♠ ${x()} ${x()} ${x()}<br>♥ K Q ${x()}<br>♦ A ${x()} ${x()} ${x()}<br>♣ K ${x()} ${x()} ${x()}`,
+                w:`♠ K Q J ${x()}<br>♥ A ${x()} ${x()} ${x()}<br>♦ ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`, pos:'西家', contract:'3NT'}),
+        ];
+        return patterns[Math.floor(Math.random()*patterns.length)]();
+    }
+    // fallback
+    return {q:'如何防守？', opts:['主动进攻','被动等待','放弃'], ans:0, exp:'主动进攻是好的防守策略',
+        n:`♠ ${x()} ${x()} ${x()}<br>♥ K Q J<br>♦ A ${x()} ${x()} ${x()}<br>♣ K ${x()} ${x()}`,
+        w:`♠ K Q J ${x()} ${x()}<br>♥ ${x()} ${x()} ${x()}<br>♦ ${x()} ${x()}<br>♣ ${x()} ${x()} ${x()}`, pos:'西家', contract:'3NT'};
+}
 
 function setDefMode(m) {
     defMode = m;
+    const modeMap = {lead:'首攻',signal:'信号',plan:'防守计划'};
     document.querySelectorAll('#page-defend .week-btn').forEach(b => {
         b.classList.remove('active');
-        if((m==='lead'&&b.textContent==='首攻')||(m==='signal'&&b.textContent==='信号')||(m==='plan'&&b.textContent==='防守计划')) b.classList.add('active');
+        if(b.textContent===modeMap[m]) b.classList.add('active');
     });
     newDefQ();
 }
 
 function newDefQ() {
-    const qs = DEF_QS[defMode] || DEF_QS.lead;
-    const q = qs[Math.floor(Math.random()*qs.length)];
+    currentCategory = 'def_' + defMode;
+    const q = generateDefHand(defMode);
 
     document.getElementById('def-contract').textContent = '定约: ' + q.contract + ' 南庄家';
     document.getElementById('def-n').innerHTML = q.n;
@@ -2230,6 +2885,7 @@ function newDefQ() {
 function pickDef(i, ans, exp) {
     document.querySelectorAll('#def-opts .play-btn').forEach((b,j) => { b.classList.remove('sel'); if(j===i)b.classList.add('sel'); });
     const ok = i === ans;
+    trackWeakArea(ok);
 
     // 音效和动画
     playSound(ok ? 'correct' : 'wrong');
@@ -2894,9 +3550,23 @@ function processBid(bid) {
         const level = parseInt(bid[0]);
         const suit = bid.slice(1);
         battle.lastBid = {level, suit};
-        battle.declarer = battle.turn;
         battle.passCount = 0;
         battle.doubled = 0;
+
+        // 正确的庄家检测：同一阵营中第一个叫过该花色的人
+        const suitKey = suit;
+        const team = (POSITIONS.indexOf(battle.turn) % 2); // 0=WE, 1=NS
+        let firstBidder = battle.turn;
+        // 检查同一阵营之前是否有人叫过这门花色
+        for(let i = 0; i < battle.bidSeq.length; i++) {
+            const bidder = POSITIONS[(POSITIONS.indexOf(battle.dealer) + i) % 4];
+            const bidderTeam = POSITIONS.indexOf(bidder) % 2;
+            if(bidderTeam === team && battle.bidSeq[i] !== 'Pass' && battle.bidSeq[i] !== 'X' && battle.bidSeq[i] !== 'XX') {
+                const prevSuit = battle.bidSeq[i].slice(1);
+                if(prevSuit === suitKey) { firstBidder = bidder; break; }
+            }
+        }
+        battle.declarer = firstBidder;
     }
 
     // 检查叫牌结束
@@ -2955,39 +3625,85 @@ function aiDoBid() {
 
     const pos = battle.turn;
     const h = battle.hands[pos];
+    const p = hcp(h), l = lens(h);
+    const partner = getPartner(pos);
     let bid = 'Pass';
 
-    // 简单AI: 使用现有的judgeOpen
+    // 找同伴上次的实质叫品
+    function getPartnerBidForPos(pos) {
+        const partnerPos = getPartner(pos);
+        for(let i = battle.bidSeq.length - 1; i >= 0; i--) {
+            const bidder = POSITIONS[(POSITIONS.indexOf(battle.dealer) + i) % 4];
+            if(bidder === partnerPos && battle.bidSeq[i] !== 'Pass' && battle.bidSeq[i] !== 'X' && battle.bidSeq[i] !== 'XX')
+                return battle.bidSeq[i];
+        }
+        return null;
+    }
+
+    // 找敌方上次实质叫品
+    function getOppBidForPos(pos) {
+        for(let i = battle.bidSeq.length - 1; i >= 0; i--) {
+            const bidder = POSITIONS[(POSITIONS.indexOf(battle.dealer) + i) % 4];
+            if(bidder !== pos && bidder !== getPartner(pos) && battle.bidSeq[i] !== 'Pass' && battle.bidSeq[i] !== 'X' && battle.bidSeq[i] !== 'XX')
+                return battle.bidSeq[i];
+        }
+        return null;
+    }
+
+    // 找自己上次的实质叫品
+    function getMyLastBid(pos) {
+        for(let i = battle.bidSeq.length - 1; i >= 0; i--) {
+            const bidder = POSITIONS[(POSITIONS.indexOf(battle.dealer) + i) % 4];
+            if(bidder === pos && battle.bidSeq[i] !== 'Pass' && battle.bidSeq[i] !== 'X' && battle.bidSeq[i] !== 'XX')
+                return battle.bidSeq[i];
+        }
+        return null;
+    }
+
+    const partnerBid = getPartnerBidForPos(pos);
+    const oppBid = getOppBidForPos(pos);
+    const myLastBid = getMyLastBid(pos);
+
+    // 开叫
     if(!battle.lastBid) {
         const result = judgeOpen(h);
         bid = result.bid;
-    } else {
-        // 应叫逻辑
-        const p = hcp(h);
-        const l = lens(h);
-        const partner = getPartner(pos);
-        const isPartnerBid = battle.declarer === partner;
-
-        if(isPartnerBid && battle.lastBid) {
-            // 支持同伴
-            const suit = suitNameFromSymbol(battle.lastBid.suit);
-            if(suit !== 'nt' && h[suit].length >= 3 && p >= 6) {
-                const newLevel = Math.min(battle.lastBid.level + 1, 4);
-                if(isValidBid(newLevel, battle.lastBid.suit)) {
-                    bid = newLevel + battle.lastBid.suit;
-                }
-            } else if(p >= 10 && battle.lastBid.level < 3) {
-                // 尝试叫新花色
-                if(l.s >= 5 && isValidBid(1, '♠')) bid = '1♠';
-                else if(l.h >= 5 && isValidBid(1, '♥')) bid = '1♥';
-            }
-        } else if(!isPartnerBid && p >= 12) {
-            // 争叫
-            if(l.s >= 5 && isValidBid(1, '♠')) bid = '1♠';
-            else if(l.h >= 5 && isValidBid(1, '♥')) bid = '1♥';
-            else if(l.d >= 5 && isValidBid(2, '♦')) bid = '2♦';
-            else if(l.c >= 5 && isValidBid(2, '♣')) bid = '2♣';
+    }
+    // 同伴开叫了，我来应叫
+    else if(partnerBid && !myLastBid) {
+        // 敌方加倍
+        if(battle.bidSeq[battle.bidSeq.length - 1] === 'X') {
+            bid = judgeAfterX(h, partnerBid).bid;
         }
+        // 敌方争叫
+        else if(oppBid && oppBid !== 'Pass') {
+            bid = judgeComp(h, partnerBid, oppBid).bid;
+        }
+        // 敌方Pass
+        else {
+            bid = judgeResp(h, partnerBid).bid;
+        }
+    }
+    // 我开叫过了，同伴应叫了，我来再叫
+    else if(myLastBid && partnerBid) {
+        bid = judgeRebid(h, myLastBid, partnerBid).bid;
+    }
+    // 敌方开叫，考虑争叫
+    else if(!partnerBid && oppBid && !myLastBid) {
+        bid = judgeOvercall(h, oppBid).bid;
+    }
+    // 默认
+    else {
+        if(p < 6) bid = 'Pass';
+        else if(!battle.lastBid && p >= 12) bid = judgeOpen(h).bid;
+        else bid = 'Pass';
+    }
+
+    // 确保叫品合法
+    if(bid !== 'Pass' && bid !== 'X' && bid !== 'XX') {
+        const bidLevel = parseInt(bid[0]);
+        const bidSuit = bid.slice(1);
+        if(!isValidBid(bidLevel, bidSuit)) bid = 'Pass';
     }
 
     processBid(bid);
@@ -3187,37 +3903,104 @@ function aiDoPlay() {
     const validCards = getValidCards(pos);
     if(validCards.length === 0) return;
 
-    // 简单AI策略
+    const h = battle.hands[pos];
+    const partner = getPartner(pos);
+    const isDefender = (pos === 'n' || pos === 's') !== (battle.declarer === 'n' || battle.declarer === 's');
     let card;
+
     if(battle.currentTrick.length === 0) {
-        // 首攻：打最长套的大牌
-        const h = battle.hands[pos];
-        let longestSuit = 'spades';
-        S.forEach(s => {
-            if(h[s].length > h[longestSuit].length) longestSuit = s;
-        });
-        const suitCards = validCards.filter(c => c.s === longestSuit);
-        card = suitCards.length > 0 ? suitCards[0] : validCards[0];
+        // 首攻/引牌
+        if(isDefender) {
+            // 防守方首攻策略
+            // 1. 连张首攻(KQJ, QJT等)
+            for(const suit of S) {
+                const cards = h[suit];
+                if(cards.length >= 2 && cards.includes('K') && cards.includes('Q'))  {
+                    const c = validCards.find(v => v.s === suit && v.r === 'K');
+                    if(c) { card = c; break; }
+                }
+                if(cards.length >= 2 && cards.includes('Q') && cards.includes('J')) {
+                    const c = validCards.find(v => v.s === suit && v.r === 'Q');
+                    if(c) { card = c; break; }
+                }
+            }
+            // 2. 对有将定约：找单张攻
+            if(!card && battle.trumpSuit !== 'nt') {
+                for(const suit of S) {
+                    if(suit !== battle.trumpSuit && h[suit].length === 1) {
+                        card = validCards.find(v => v.s === suit);
+                        break;
+                    }
+                }
+            }
+            // 3. 最长套第四大(对NT)或最长非将套
+            if(!card) {
+                let bestSuit = null, bestLen = 0;
+                S.forEach(s => {
+                    if(s !== battle.trumpSuit && h[s].length > bestLen) {
+                        bestLen = h[s].length; bestSuit = s;
+                    }
+                });
+                if(bestSuit && bestLen >= 4) {
+                    const suitCards = validCards.filter(c => c.s === bestSuit);
+                    // 第四大
+                    card = suitCards.length >= 4 ? suitCards[3] : suitCards[0];
+                }
+            }
+            if(!card) card = validCards[0];
+        } else {
+            // 庄家方引牌：打最长套大牌或拔将牌
+            let longestSuit = null, longestLen = 0;
+            S.forEach(s => {
+                if(h[s].length > longestLen) { longestLen = h[s].length; longestSuit = s; }
+            });
+            const suitCards = validCards.filter(c => c.s === longestSuit);
+            card = suitCards.length > 0 ? suitCards[0] : validCards[0];
+        }
     } else {
         // 跟牌
         const leadSuit = battle.currentTrick[0].suit;
-        const partner = getPartner(pos);
-        const partnerCard = battle.currentTrick.find(c => c.pos === partner);
         const currentWinner = getCurrentTrickWinner();
+        const winnerCard = battle.currentTrick.find(tc => tc.pos === currentWinner);
 
         // 如果同伴赢着，打小牌
         if(currentWinner === partner) {
             card = validCards[validCards.length - 1];
         } else {
-            // 尝试赢这墩
-            const winningCards = validCards.filter(c => {
-                if(c.s === leadSuit) {
-                    const winnerCard = battle.currentTrick.find(tc => tc.pos === currentWinner);
-                    return R.indexOf(c.r) < R.indexOf(winnerCard.rank);
+            // 能跟同花色吗？
+            const followCards = validCards.filter(c => c.s === leadSuit);
+            if(followCards.length > 0) {
+                // 尝试赢这墩 - 用最小的能赢的牌
+                const winningFollow = followCards.filter(c => R.indexOf(c.r) < R.indexOf(winnerCard.rank));
+                if(winningFollow.length > 0) {
+                    card = winningFollow[winningFollow.length - 1]; // 最小的能赢的牌
+                } else {
+                    card = followCards[followCards.length - 1]; // 打最小的
                 }
-                return false;
-            });
-            card = winningCards.length > 0 ? winningCards[0] : validCards[validCards.length - 1];
+            } else {
+                // 缺门 - 考虑将吃
+                if(battle.trumpSuit !== 'nt') {
+                    const trumpCards = validCards.filter(c => c.s === battle.trumpSuit);
+                    if(trumpCards.length > 0 && winnerCard.suit !== battle.trumpSuit) {
+                        // 将吃！用最小的将牌
+                        card = trumpCards[trumpCards.length - 1];
+                    } else if(trumpCards.length > 0 && winnerCard.suit === battle.trumpSuit) {
+                        // 需要超将吃
+                        const overruff = trumpCards.filter(c => R.indexOf(c.r) < R.indexOf(winnerCard.rank));
+                        if(overruff.length > 0) {
+                            card = overruff[overruff.length - 1];
+                        } else {
+                            // 不能超将吃，垫牌
+                            const nonTrump = validCards.filter(c => c.s !== battle.trumpSuit);
+                            card = nonTrump.length > 0 ? nonTrump[nonTrump.length - 1] : validCards[validCards.length - 1];
+                        }
+                    } else {
+                        card = validCards[validCards.length - 1]; // 垫小牌
+                    }
+                } else {
+                    card = validCards[validCards.length - 1]; // 垫小牌
+                }
+            }
         }
     }
 
@@ -3230,8 +4013,20 @@ function getCurrentTrickWinner() {
     let winner = battle.currentTrick[0];
 
     battle.currentTrick.forEach(card => {
-        if(card.suit === leadSuit && R.indexOf(card.rank) < R.indexOf(winner.rank)) {
-            winner = card;
+        if(battle.trumpSuit !== 'nt') {
+            // 有将牌定约 - 必须考虑将牌
+            if(card.suit === battle.trumpSuit && winner.suit !== battle.trumpSuit) {
+                winner = card; // 将牌打无将牌赢
+            } else if(card.suit === battle.trumpSuit && winner.suit === battle.trumpSuit) {
+                if(R.indexOf(card.rank) < R.indexOf(winner.rank)) winner = card;
+            } else if(card.suit === leadSuit && winner.suit === leadSuit) {
+                if(R.indexOf(card.rank) < R.indexOf(winner.rank)) winner = card;
+            }
+        } else {
+            // 无将定约
+            if(card.suit === leadSuit && R.indexOf(card.rank) < R.indexOf(winner.rank)) {
+                winner = card;
+            }
         }
     });
 
